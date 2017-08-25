@@ -37,7 +37,7 @@ sub parse {
 sub docolor { $COLORED ? color(@_) : '' }
 
 sub printsumm {
-	my $spam = '  ';
+	my $spam = '';
 	if ($all{'x-spam-flag'} && ($all{'x-spam-flag'} eq 'YES')) {
 		$spam = docolor('red').'*'.docolor('reset').' ';
 	}
@@ -52,9 +52,9 @@ sub printsumm {
 	my $midnight = parsedate(strftime("%Y-%m-%d 00:00:00",@now));
 	my $thisyear = parsedate(strftime("%Y-01-01 00:00:00",@now));
 	my $t = parsedate($rawdate);
-	my $tfmt = "            %H:%M";
+	my $tfmt = "%H:%M";
 	if ($t < $midnight) {
-		$tfmt = "    %d %b %H:%M";
+		$tfmt = "%d %b %H:%M";
 		if ($t < $thisyear) {
 			$tfmt = "%d %b %Y %H:%M";
 		}
@@ -78,7 +78,7 @@ sub printsumm {
 	}
 	$subj = '-no subject-' unless $subj;
 	$subj = docolor('bold green').$subj.docolor('reset');
-	print STDERR "${spam}${date}${list}${from} -> ${to}: ${subj}\n";
+	print STDERR "${date}${spam}${list}${from} -> ${to}: ${subj}\n";
 }
 
 sub summ {

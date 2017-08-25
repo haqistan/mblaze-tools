@@ -1,7 +1,7 @@
 #
 
 BINDIR?=${HOME}/bin
-SCRIPTS=mapply minbox mmv mnewdirs mpane mrespam msign msummary munspam
+SCRIPTS=mapply minbox mincall mmv mnewbox mnewdirs mpane mrespam msign msummary munspam
 
 all: ${SCRIPTS}
 
