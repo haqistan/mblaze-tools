@@ -6,7 +6,7 @@ as_args=0
 }
 while read filename; do
 	if [ $as_args -eq 0 ]; then
-		eval "$*" < $filename
+		[ -f ${filename} ] && eval "$*" < $filename
 	else
 		eval "$* ${filename}"
 	fi
