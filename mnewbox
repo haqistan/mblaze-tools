@@ -1,0 +1,9 @@
+#!/bin/sh
+if [ $# -eq 0 ]; then
+	box=INBOX
+else
+	box="$1"
+	shift
+fi
+echo '** '$box >& 2
+minbox ${box} -N $*
