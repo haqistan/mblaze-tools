@@ -1,0 +1,7 @@
+#!/bin/sh
+BYTIME=${BYTIME-${HOME}/mail/bytime}
+[ ! -f ${BYTIME} ] && mbytime > ${BYTIME}
+[ -f ${BYTIME} ] && tail -1 ${BYTIME} | \
+	while read name dir; do
+	    find mail -type f -a -name '[0-9]*.[0-9]*_[0-9]*' -a -newer ${dir}/${name}
+	done

@@ -1,0 +1,97 @@
+#!/usr/bin/perl
+#
+# summarize a single message on stdin
+#
+use strict;
+use warnings;
+use POSIX;
+use Time::ParseDate;
+use Term::ANSIColor;
+
+our $COLORED = $ENV{'MSUMMARY_COLOR'} ? int($ENV{'MSUMMARY_COLOR'}) : 1;
+our $MAXSUBJ = 0;
+
+our $hdr = '';
+our $interesting = qr/^(from|to|cc|date|subject|x-spam-flag|list-id)$/i;
+our $something = 0;
+our %all;
+
+sub parse {
+	if ($hdr !~ /^([^:]+?):\s*(\S.*)$/) {
+		print STDERR "MALFORMED: $hdr\n";
+	} else {
+		my($n,$v) = ($1,$2);
+		if ($n =~ $interesting) {
+			$n = lc($n);
+			if ($all{$n}) {
+				$all{$n} .= ",$v";
+			} else {
+				$all{$n} = $v;
+			}
+			++$something;
+		}
+	}
+	$hdr = '';
+}
+
+sub docolor { $COLORED ? color(@_) : '' }
+
+sub printsumm {
+	my $spam = '  ';
+	if ($all{'x-spam-flag'} && ($all{'x-spam-flag'} eq 'YES')) {
+		$spam = docolor('red').'*'.docolor('reset').' ';
+	}
+	my $list = '';
+	if ($all{'list-id'}) {
+		my $lid = $all{'list-id'};
+		$lid = $1 if $lid =~ /^.*<([^>]+)>$/;
+		$list = docolor('yellow')."[$lid]".docolor('reset').' ';
+	}
+	my $rawdate = $all{'date'};
+	my $t = parsedate($rawdate);
+	my $d = POSIX::strftime('%Y-%m-%d %H:%M',localtime($t));
+	my $date = docolor('bold blue')."$d ".docolor('reset');
+	my $from = $all{'from'} ? docolor('green').$all{'from'}.docolor('reset') :
+	    doclor('red').'?'.docolor('reset');
+	my $to = '?';
+	if ($all{'to'} || $all{'cc'}) {
+		$to = $all{'to'} || '';
+		if ($all{'cc'}) {
+			$to .= ',' if $to;
+			$to .= $all{'cc'};
+		}
+	}
+	my $subj = $all{'subject'};
+	if ($MAXSUBJ && (length($subj) > $MAXSUBJ)) {
+		$subj = substr($subj,0,$MAXSUBJ)." ...";
+	}
+	$subj = '-no subject-' unless $subj;
+	$subj = docolor('bold green').$subj.docolor('reset');
+	print STDERR "${spam}${date}${list}${from} -> ${to}: ${subj}\n";
+}
+
+sub summ {
+	my($fh) = @_;
+	while (defined(my $line = <$fh>)) {
+		$line =~ s/\n+$//;
+		last if $line =~ /^\s*$/;
+		parse() if $hdr && $line =~ /^(\S[^:]+):\s*(\S.*)$/;
+		$line =~ s/^[\t\s]+/ /;
+		$hdr .= $line;
+	}
+	parse() if $hdr;
+	printsumm() if $something;
+}
+
+summ(\*STDIN);
+
+##
+# Local variables:
+# mode: perl
+# tab-width: 8
+# perl-indent-level: 8
+# perl-continued-statement-offset: 4
+# indent-tabs-mode: t
+# comment-column: 40
+# End:
+##

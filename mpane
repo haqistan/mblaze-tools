@@ -1,0 +1,2 @@
+#!/bin/sh
+tmux split-window "minbox $*; wait_for_me" \; select-pane -U

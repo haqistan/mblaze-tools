@@ -1,0 +1,13 @@
+#!/bin/sh
+as_args=0
+[ "$1"  = "-a" ] && {
+	as_args=1
+	shift
+}
+while read filename; do
+	if [ $as_args -eq 0 ]; then
+		eval "$*" < $filename
+	else
+		eval "$* ${filename}"
+	fi
+done

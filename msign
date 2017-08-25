@@ -1,0 +1,7 @@
+#!/bin/sh
+f=$1
+tmp=$f.tmp
+cat $f | perl -lpe 'if ($_ =~ /^--text follows this line--$/) { print "\n" }' > $tmp
+mv $tmp $f
+gpg -a -s $f
+

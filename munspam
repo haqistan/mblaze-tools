@@ -1,0 +1,10 @@
+#!/bin/sh
+# unmark a message as spam and put it back in INBOX
+inbox=${INBOX-${HOME}/mail/INBOX}
+bmf_flags=-N
+while read filename; do
+    name=$(basename $filename)
+    okf=${inbox}/new/${name}
+    bmf ${bmf_flags} -p < ${filename} | tee ${okf} | msummary
+    rm ${filename}
+done

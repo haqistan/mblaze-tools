@@ -1,0 +1,9 @@
+#!/bin/sh
+# list some inbox 
+inbox=${INBOX-$HOME/mail/INBOX}
+[ -n "$1" ] && {
+    inbox=$HOME/mail/$1
+    shift
+}
+mlist_args="$*"
+mlist ${mlist_args} ${inbox} | mthread | mseq -S | mscan

@@ -1,0 +1,261 @@
+#!/usr/bin/perl
+#
+# mktunnel - make new tunnel
+#
+# Copyright (C) 2002 by attila <attila@stalphonsos.com>.  All Rights Reserved.
+#
+# Time-stamp: <2003-05-25 03:32:18 EDT>
+# $Id: mktunnel,v 1.1.1.1 2005/10/22 21:28:21 attila Exp $
+#
+# Author: attila <attila@stalphonsos.com>
+#
+# Description:
+#
+# See documentation at EOF
+#
+use strict;
+use vars qw($ORIGINAL_SCRIPT $P $VERSION $VERBOSE $OPTS $USAGE $DESCR $AUTHOR
+            $COPYRIGHT $ARGS_DESC $LOG_STDERR $LOG_FILE $LOG_FP $LOG_TSTAMP_FMT
+            $DEFAULTS);
+BEGIN {
+  $ORIGINAL_SCRIPT = $0;
+  my(@P) = split("/", $0);
+  $P = pop(@P);
+  my $dir = join('/', @P);
+  unshift(@INC, $dir);
+  ## If we're being run out of a bin/ directory and there is ../lib, then
+  ## add it to @INC
+  if ($P[$#P] eq 'bin') {
+    my @tmp = @P;
+    pop(@tmp);
+    my $tmp = join("/",@tmp)."/lib";
+    unshift(@INC, $tmp) if (-d $tmp);
+    $tmp .= "/perl";
+    unshift(@INC, $tmp) if (-d $tmp);
+  }
+  my $ndir = "$dir/../lib/perl5/site_perl";
+  unshift(@INC, $ndir) if (-d $ndir);
+}
+##
+use POSIX;
+use Getopt::Std;
+##
+$DEFAULTS =
+  { tdir => $ENV{'HOME'} . '/lib/auto-tunnels',
+    bdir => $ENV{'HOME'} . '/bin',
+    templname => '.template',
+    tprog => 'auto-tunnel',
+    ssh => 'ssh -x',
+    ncprog => 'nc',
+  };
+$VERSION = '0.1.0';
+$DESCR = 'create a new ssh tunnel hack';
+$AUTHOR = 'attila <attila@stalphonsos.com>';
+$VERBOSE = 0;
+$OPTS = 'hvV:FS:d:b:t:p:n:';
+$COPYRIGHT='(C) 2003 by attila <attila@stalphonsos.com>. all rights reserved.';
+$ARGS_DESC = "[name [host [server [port]]]]";
+$LOG_STDERR = 1;
+$LOG_FILE = undef;
+$LOG_FP = undef;
+$LOG_TSTAMP_FMT = '%Y-%m-%d %H:%M:%S';
+$USAGE = <<__UsAGe__;
+  options:
+           -h    print this message and exit
+           -v    be verbose
+           -V x  set verbosity to x (-v is the same as -V 1)
+           -F    force tunnel creation even if it exists
+           -S x  use x as ssh cmd ($DEFAULTS->{ssh})
+           -d x  use x as tunnel dir ($DEFAULTS->{tdir}
+           -b x  use x as bin dir ($DEFAULTS->{bdir})
+           -t x  use x as template file
+           -p x  use x as auto-tunnel program
+           -n x  use x as the nc program on the remote end
+__UsAGe__
+##
+sub opts_str {
+  my $str = shift(@_);
+  my $dostr = "";
+  my $dvstr = "";
+  my @opts = split("", $str);
+  my $dvcol = 0;
+  my $maxdv = 30;
+  while (my $o = shift(@opts)) {
+    if ($opts[0] eq ':') {
+      shift(@opts);
+      if ($dvcol > $maxdv) {
+        $dvstr .= ("\n" . (" " x (11 + length($P))));
+        $dvcol = 11 + length($P);
+        $maxdv = 65;
+      }
+      $dvstr .= " " if length($dvstr);
+      $dvstr .= "[-$o x]";
+      $dvcol += 7;
+    } else {
+      $dostr .= "[-" unless length($dostr);
+      $dostr .= $o;
+    }
+  }
+  $dostr .= "]" if length($dostr);
+  my $dstr = $dostr;
+  $dstr .= " " if length($dstr);
+  $dstr .= $dvstr;
+  return $dstr;
+}
+##
+sub usage_section {
+  my $fh = shift(@_);
+  my $regexp = shift(@_);
+  my $title = shift(@_) || $P;
+  my $hdr_fmt = shift(@_);
+  my $in_sect = 0;
+  while (<$fh>) {
+    next unless ($in_sect || /^=head1\s+$regexp/);
+    if (/^=head1\s+$regexp/) {
+      $in_sect = 1;
+      print STDERR "\n  ","-" x 20, "[ $title ]", "-" x 20,"\n\n";
+      print STDERR sprintf($hdr_fmt, @_) if $hdr_fmt;
+      next;
+    } elsif ($in_sect && /^=cut/) {
+      last;
+    } elsif ($in_sect) {
+      print STDERR $_;
+    }
+  }
+}
+##
+sub usage {
+  my $msg = shift(@_);
+  print STDERR sprintf("%9s: %s\n", "ERROR", $msg) if $msg;
+  print STDERR sprintf("%9s: %s\n", $P, $DESCR);
+  print STDERR sprintf("%9s: %s\n", "version", $VERSION);
+  print STDERR sprintf("%9s: %s\n", "copyright", $COPYRIGHT);
+  print STDERR sprintf("%9s: %s\n", "author", $AUTHOR);
+  print STDERR sprintf("%9s: %s %s %s\n", "usage", $P, opts_str($OPTS),
+                       $ARGS_DESC);
+  print $USAGE;
+  if (scalar(@_)) {
+    my $nope = 0;
+    open(ME, "<$0") || ($nope=1);
+    unless ($nope) {
+      usage_section(\*ME, 'DESCRIPTION', '  DESCRIPTION  ');
+      usage_section(\*ME, 'VERSION',     'VERSION HISTORY',
+                    "  %-7s   %-9s   %-7s %s\n", "VERS", "WHEN",
+                    "WHO", "WHAT");
+      close(ME);
+    }
+  }
+  exit(defined($msg));
+}
+##
+sub ts {
+  my $fmt = $LOG_TSTAMP_FMT || "%Y-%m-%d %H:%M:%S";
+  return POSIX::strftime($fmt, localtime(time));
+}
+##
+sub log_msg {
+  my $lvl = shift(@_);
+  return unless $VERBOSE >= $lvl;
+  my $logmsg = "$P: " . ts() . " [$lvl] @_\n";
+  print STDERR $logmsg if $LOG_STDERR;
+  if ($LOG_FILE && !$LOG_FP) {
+    $LOG_FP = new IO::File("> $LOG_FILE")
+      or die "$P: could not create log file $LOG_FILE: $!\n";
+  }
+  print $LOG_FP $logmsg if $LOG_FP;
+}
+##
+sub askfor {
+  my $prompt = shift(@_);
+ ASK:
+  print "$prompt: ";
+  chomp(my $answer = <>);
+  goto ASK unless length $answer;
+  return $answer;
+}
+##
+sub mung {
+  my($in,$out,$vars) = @_;
+  open(IN, "< $in") || die qq{$P: could not mung input "$in": $!\n};
+  open(OUT, "> $out") || die qq{$P: could not mung output "$out": $!\n};
+  while (<IN>) {
+    foreach my $key (keys %$vars) {
+      my $vpat = '%' . $key . '%';
+      my $vsub = $vars->{$key};
+      s/$vpat/$vsub/g;
+    }
+    print OUT $_;
+  }
+  close(IN);
+  close(OUT);
+}
+## Main Program ############################################################
+main: {
+  $| = 1;
+  my %opts;
+  usage() unless getopts($OPTS, \%opts);
+  usage(undef, 1) if $opts{'h'};
+  $VERBOSE = $opts{'V'} || $opts{'v'};
+  my $tdir = $opts{'d'} || $DEFAULTS->{tdir};
+  die qq{$P: no tunnel directory "$tdir"\n} unless (-d $tdir);
+  my $bdir = $opts{'b'} || $DEFAULTS->{bdir};
+  die qq{$P: no binary directory "$bdir"\n} unless (-d $bdir);
+  my $tname = shift(@ARGV) || askfor("Tunnel name");
+  my $tprog = $opts{'p'} || $DEFAULTS->{tprog};
+  my $tfile = $tdir . '/' . $tname;
+  my $bfile = $bdir . '/' . $tname;
+  my $tbin = $bdir . '/' . $tprog;
+  unless ($opts{'F'}) {                 # force
+    die qq{$P: tunnel file "$tfile" for $tname already exists\n}
+      if (-f $tfile);
+    die qq{$P: tunnel "$bfile" for $tname already exists\n}
+      if (-f $bfile);
+  }
+  die qq{$P: tunnel binary "$tbin" does not exist\n} unless (-f $tbin);
+  my $thost = shift(@ARGV) || askfor("Tunnel host (ssh endpoint)");
+  my $tserv = shift(@ARGV) || askfor("Server host (real endpoint)");
+  my $tport = shift(@ARGV) || askfor("TCP port (real endpoint)");
+  my $tssh = $opts{'S'} || $DEFAULTS->{ssh};
+  my $ncprog = $opts{'n'} || $DEFAULTS->{ncprog};
+  my $template = $opts{'t'} || ($tdir . '/' . $DEFAULTS->{templname});
+  mung($template,$tfile,
+       { SSH => $tssh,
+         NC => $ncprog,
+         HOST => $thost,
+         SERVER => $tserv,
+         PORT => $tport,
+         NAME => $tname,
+         DATE => POSIX::strftime("%Y-%m-%d %H:%M:%S %Z",localtime(time)),
+         VERSION => $VERSION });
+  unlink($bfile) if (-f $bfile);        # alreach checked for -F
+  symlink($tbin,$bfile) ||
+    die qq{$P: could not symlink $tfile -> $bfile: $!\n};
+  print qq{$P: created tunnel $tname ($bfile)\n} if $VERBOSE;
+  exit(0);
+}
+__END__
+
+=head1 DESCRIPTION
+for use with my auto-tunnel hack, which is really a poor man's vpn
+based on ssh.  auto-tunnel is a program that should be in your
+path (i keep it in ~/bin).  it is not meant to be invoked directly,
+but rather as a symlink.  if you create a symlink called foo that
+points at auto-tunnel and invoke it, auto-tunnel will look for
+a file called ~/lib/auto-tunnels/foo, source it if it exists, and
+use the variables it defines to ssh to somewhere and connect to
+something on the other end.
+=cut
+
+=head1 VERSION HISTORY
+  0.1.0   01 Jan 99     attila  who knows when i really wrote this...
+=cut
+
+##
+# Local variables:
+# mode: perl
+# tab-width: 2
+# perl-indent-level: 2
+# indent-tabs-mode: nil
+# comment-column: 40
+# end:
+##

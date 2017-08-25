@@ -1,0 +1,14 @@
+#!/bin/sh
+dst="$1"
+[ -z "${dst}" ] && {
+    echo "no destination"
+    exit 1
+}
+[ ! -d ${dst} ] && dst="mail/${dst}"
+[ ! -d ${dst} ] && {
+    echo "destination not a directory: ${dst}"
+    exit 1
+}
+while read filename; do
+    [ -f ${filename} ] && echo mv ${filename} ${dst}
+done
