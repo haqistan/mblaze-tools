@@ -16,9 +16,21 @@ our $interesting = qr/^(from|to|cc|date|subject|x-spam-flag|list-id)$/i;
 our $something = 0;
 our %all;
 
+our @now = localtime(time);
+our $midnight = parsedate(strftime("%Y-%m-%d 00:00:00",@now));
+our $thisyear = parsedate(strftime("%Y-01-01 00:00:00",@now));
+
+sub clean {
+	my($str) = @_;
+	$str =~ s/^\s+//;
+	$str =~ s/\s+$//;
+	$str =~ s/\s+/ /gs;
+	return $str;
+}
+
 sub parse {
 	if ($hdr !~ /^([^:]+?):\s*(\S.*)$/) {
-		print STDERR "MALFORMED: $hdr\n";
+		warn("MALFORMED: $hdr\n");
 	} else {
 		my($n,$v) = ($1,$2);
 		if ($n =~ $interesting) {
@@ -48,10 +60,7 @@ sub printsumm {
 		$list = docolor('yellow')."[$lid]".docolor('reset').' ';
 	}
 	my $rawdate = $all{'date'};
-	my @now = localtime(time);
-	my $midnight = parsedate(strftime("%Y-%m-%d 00:00:00",@now));
-	my $thisyear = parsedate(strftime("%Y-01-01 00:00:00",@now));
-	my $t = parsedate($rawdate);
+	my $t = parsedate($rawdate) || 0;
 	my $tfmt = "%H:%M";
 	if ($t < $midnight) {
 		$tfmt = "%d %b %H:%M";
@@ -63,7 +72,7 @@ sub printsumm {
 	my $date = docolor('bold blue')."$d ".docolor('reset');
 	my $from = $all{'from'} ?
 	    docolor('green').$all{'from'}.docolor('reset') :
-	    doclor('red').'?'.docolor('reset');
+	    docolor('red').'?'.docolor('reset');
 	my $to = '?';
 	if ($all{'to'} || $all{'cc'}) {
 		$to = $all{'to'} || '';
@@ -78,7 +87,10 @@ sub printsumm {
 	}
 	$subj = '-no subject-' unless $subj;
 	$subj = docolor('bold green').$subj.docolor('reset');
-	print STDERR "${date}${spam}${list}${from} -> ${to}: ${subj}\n";
+	my $cont = '';
+	$cont = docolor('magenta').' ... '.$all{'_content'}.docolor('reset')
+	    if exists $all{'_content'};
+	print STDERR "${date}${spam}${list}${from} -> ${to}: ${subj}${cont}\n";
 }
 
 sub summ {
@@ -91,6 +103,46 @@ sub summ {
 		$hdr .= $line;
 	}
 	parse() if $hdr;
+	if ($all{'list-id'} &&
+	    ($all{'list-id'} =~ /.*-changes\.openbsd\.org/)) {
+		# OpenBSD CVS change log emails
+		my($module,$mod,@mods,$in_mods,@dirs,$nfiles,$summstr);
+		$nfiles = 0;
+		while (defined(my $line = <$fh>)) {
+			chomp($line);
+			if ($line =~ /^Module\sname:\s+(\S.*)$/) {
+				$module = $1;
+			} elsif ($line =~ /^(Modified|Removed)\sfiles:/) {
+				$mod = substr(lc($1),0,3);
+				push(@mods,$mod);
+				$in_mods = 1;
+			} elsif ($line =~ /^Log\smessage:/) {
+				if (!$in_mods) {
+					# import
+					$line = <$fh> || ''; # next line
+					$line = clean($line);
+					$summstr = $line;
+					last;
+				} # else it's a log message farther down, ignore
+			} elsif ($in_mods) {
+				my @parts = map { clean($_) } split(/:/, $line);
+				if (@parts == 2) {
+					push(@dirs,shift(@parts));
+				}
+				if (@parts) {
+					my @f = split(/\s+/,$parts[0]);
+					$nfiles += scalar(@f);
+				}
+			} # else ignore it
+		}
+		my $filez = ($nfiles == 1) ? "file": "files";
+		my $ndirs = scalar(@dirs);
+		my $dirz = ($ndirs == 1) ? "dir": "dirs";
+		my $summ = '';
+		$summ .= '<'.join(",",@mods).'> ';
+		$summstr ||= "$nfiles $filez in $ndirs $dirz: @dirs";
+		$all{'_content'} = $summ . $summstr;
+	}
 	printsumm() if $something;
 }
 

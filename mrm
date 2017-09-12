@@ -1,0 +1,4 @@
+#!/bin/sh
+while read filename; do
+      [ -f ${filename} ] && echo rm ${filename}
+done
