@@ -13,8 +13,11 @@ use File::Basename;
 use File::Find;
 use Getopt::Std;
 
-our %newdirs = ();
+our %newdirs = (); # dir => #files
 our %opts;
+our $maildir = $ENV{'MAILDIR'} || $ENV{"HOME"}."/mail";
+$maildir = $ENV{"HOME"}."/Maildir" unless -d $maildir;
+die "no maildir and no MAILDIR set!?\n" unless -d $maildir;
 
 sub check {
 	$File::Find::name =~ /\/new\/\d+\.\d+_\d+.*$/ &&
@@ -22,21 +25,10 @@ sub check {
 }
 
 getopts('n',\%opts);
-find(\&check, $ENV{"HOME"}."/mail");
 our $fmt = $opts{'n'} ? "%s\n" : "%s %d\n";
+find(\&check, $maildir);
 foreach (sort keys %newdirs) {
 	my @out = ($opts{'n'} ? dirname($_) : $_);
 	push(@out, $newdirs{$_}) unless $opts{'n'};
 	printf($fmt,@out);
 }
-
-##
-# Local variables:
-# mode: perl
-# tab-width: 8
-# perl-indent-level: 8
-# perl-continued-statement-offset: 4
-# indent-tabs-mode: t
-# comment-column: 40
-# End:
-##

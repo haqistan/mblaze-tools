@@ -1,0 +1,39 @@
+#!/bin/sh
+# usage: mdecrypt msgno msgno:msgno ...
+read_password () {
+	typeset something
+	stty -echo
+	read something
+	stty echo
+	echo "${something}"
+}
+
+read_passphrase () {
+	typeset pp
+	echo -n "passphrase: "
+	pp=$(read_password)
+	passphrase=$HOME/mine/tmp/pp
+	echo ${pp} > ${passphrase}
+}
+
+passphrase=""
+
+# scan the input files for to/cc addresses
+for picker in $*; do
+	mpick ${picker} | while read filename; do
+		mhdr -M -h to:cc ${filename}
+	done
+done 2>/dev/null | sort -u
+
+read_passphrase
+
+for picker in $*; do
+	mpick ${picker} | while read filename; do
+		# pass the Date header around gpg's back since it won't preserve it
+		(echo -n 'Date: '; mhdr -h Date ${filename}; \
+		 mshow -r ${filename} | gpg --passphrase-file=${passphrase}) | \
+			fdm -acrypto fetch
+	done
+done
+
+rm -fP ${HOME}/mine/tmp/pp
