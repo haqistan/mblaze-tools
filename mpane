@@ -1,2 +1,3 @@
 #!/bin/sh
-tmux split-window "minbox $*; wait_for_me" \; select-pane -U
+cmd=${MPANE_CMD-mnewbox}
+tmux split-window "${cmd} $*; wait_for_me" \; select-pane -U
