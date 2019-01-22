@@ -1,7 +1,7 @@
-#!/usr/bin/perl
-#
-# summarize a single message on stdin
-#
+#!/usr/bin/env perl
+
+# msummary - summarize a single message on stdin
+
 use strict;
 use warnings;
 use POSIX qw(strftime);
@@ -147,14 +147,3 @@ sub summ {
 }
 
 summ(\*STDIN);
-
-##
-# Local variables:
-# mode: perl
-# tab-width: 8
-# perl-indent-level: 8
-# perl-continued-statement-offset: 4
-# indent-tabs-mode: t
-# comment-column: 40
-# End:
-##
