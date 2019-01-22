@@ -1,0 +1,47 @@
+#!/bin/sh
+
+# mloop - a thin command-line interface to a mail folder using mblaze
+
+# this script goes with mpane, which invokes it in a new tmux window
+# it reads from stdin and allows for simple display and reply of
+# messages in the folder mpane dumps out above us.
+
+mdopts="$*"
+
+#stty -echo
+#trap 'stty echo; exit 0' INT QUIT TERM
+
+tmux_reply () {
+	typeset msgno
+	msgno=$1
+	shift
+	tmux new-window -n "[reply $msgno]" "env EDITOR=emax mrep $* ${msgno}; wait_for_me"
+}
+
+while read nothing?'> ' afterargs; do
+	cmd="mdisplay ${mdopts}"
+#	echo nothing: ${nothing}, afterargs: ${afterargs}
+	case ${nothing} in
+		reply)
+			cmd=tmux_reply
+			case ${afterargs} in
+				[0-9]*)
+					set -- ${afterargs}
+					tmux set-buffer $1
+					shift
+					afterargs="$*"
+					;;
+			esac
+			;;
+		quit|exit) exit 0 ;;
+		[0-9]*) tmux set-buffer ${nothing} ;;
+	esac
+	msgno=$(tmux show-buffer)
+	if [ -n "${msgno}" ]; then
+		f=$(mpick ${msgno} 2>/dev/null)
+		[ -n $f ] && {
+			echo ${cmd} ${msgno} ${afterargs}
+			${cmd} ${msgno} ${afterargs}
+		}
+	fi
+done

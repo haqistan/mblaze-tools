@@ -1,7 +1,36 @@
 #!/bin/sh
+
+# msign $msg
+# mencrypt $msg
+
+[ $# -eq 0 ] && {
+	echo usage: $(basename $0) msgfile
+	exit 1
+}
+
 f=$1
-tmp=$f.tmp
+tmp=$(dirname $(dirname $f))/tmp/$(basename $f)
 cat $f | perl -lpe 'if ($_ =~ /^--text follows this line--$/) { print "\n" }' > $tmp
 mv $tmp $f
-gpg -a -s $f
 
+cmd=${MENCRYPT_CMD-gpg}
+opts=
+
+case "$0" in
+	*msign*)
+		opts="--clearsign -s -a"
+		;;
+	*mencrypt*)
+		opts="-e --clearsign -s -a"
+		for recip in $(mhdr -h to:cc:bcc ${f}); do
+			opts="${opts} -r '${recip}'"
+		done
+		;;
+	*)
+		echo $0: 'what?'
+		exit 1
+		;;
+esac
+
+echo ${cmd} ${opts} ${f}
+${cmd} ${opts} ${f}

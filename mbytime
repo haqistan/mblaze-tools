@@ -1,6 +1,0 @@
-#!/bin/sh
-BYTIME=${BYTIME-${HOME}/mail/bytime}
-find mail -type f -a -name '[0-9]*.[0-9]*_[0-9]*' | \
-    while read filename; do
-	echo $(basename $filename) $(dirname $filename)
-    done | sort -n

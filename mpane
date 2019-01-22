@@ -1,3 +1,31 @@
 #!/bin/sh
-cmd=${MPANE_CMD-mnewbox}
-tmux split-window "${cmd} $*; wait_for_me" \; select-pane -U
+
+# mpane [-nh] [-mloop_options] [cmd_args]
+
+horiz=
+args=
+cmd=minbox
+opts=
+
+for arg in $*; do
+	case $arg in
+		-n) cmd=mnewbox ;;
+		-h) horiz=-h ;;
+		-*)
+			if [ -z "$opts" ]; then
+				opts=$arg
+			else
+				opts="${opts} ${arg}"
+			fi
+			;;
+		*)
+			if [ -z "$args" ]; then
+				args=$arg
+			else
+				args="${args} ${arg}"
+			fi
+			;;
+	esac
+done
+
+tmux split-window ${horiz} "${cmd} ${args}; mloop ${opts}"

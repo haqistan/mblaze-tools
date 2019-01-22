@@ -1,6 +1,0 @@
-#!/bin/sh
-BYTIME=${BYTIME-${HOME}/mail/bytime}
-mlatest | \
-    while read filename; do
-	echo $(basename $filename) $(dirname $filename)
-    done | sort -n | tee -a ${BYTIME}

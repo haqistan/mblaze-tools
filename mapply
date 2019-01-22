@@ -1,4 +1,8 @@
 #!/bin/sh
+
+# mpick msgs... | mapply cmd     # pipes each msg into cmd
+# mpick msgs... | mapply -a cmd  # runs cmd $filename on each msg
+
 as_args=0
 [ "$1"  = "-a" ] && {
 	as_args=1

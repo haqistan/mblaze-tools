@@ -1,0 +1,57 @@
+#!/bin/sh
+
+[ -z "$*" ] && {
+	echo usage: $(basename $0) [-xtn] [mless_args...]
+	exit 1
+}
+
+# collect varname ...
+collect () {
+	typeset var val
+	var=$1
+	shift
+	for arg in $*; do
+		val=$(eval '$'$var)
+		if [ -z "$val" ]; then
+			val=$arg
+		else
+			val="${val} ${arg}"
+		fi
+		eval $var="$val"
+	done
+}
+
+args=
+use_xterm=0
+use_tmux=0
+
+[ -n $TMUX ] && use_tmux=1
+[ $use_tmux -eq 0 -a -n $DISPLAY ] && use_xterm=1
+
+for arg in $*; do
+	case $arg in
+		-x)
+			use_xterm=1
+			use_tmux=0
+			;;
+		-t)
+			use_tmux=1
+			use_xterm=0
+			;;
+		-n)
+			use_xterm=0
+			use_tmux=0
+			;;
+		*)
+			collect args $arg
+			;;
+	esac
+done
+
+if [ $use_xterm -ne 0 ]; then
+	xterm -geom 80x34 -e "mless $*"
+elif [ $use_tmux -ne 0 ]; then
+	tmux new-window -n "[msg $*]" "mless $*"
+else
+	mshow $*
+fi
