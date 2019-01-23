@@ -2,30 +2,36 @@
 
 # mpane [-nh] [-mloop_options] [cmd_args]
 
+# collect varname ...
+collect () {
+	typeset var val
+	var=$1
+	shift
+	for arg in $*; do
+		val=$(eval '$'$var)
+		if [ -z "$val" ]; then
+			val=$arg
+		else
+			val="${val} ${arg}"
+		fi
+		eval $var="$val"
+	done
+}
+
 horiz=
 args=
 cmd=minbox
 opts=
+arg0=
 
 for arg in $*; do
 	case $arg in
-		-n) cmd=mnewbox ;;
-		-h) horiz=-h ;;
-		-*)
-			if [ -z "$opts" ]; then
-				opts=$arg
-			else
-				opts="${opts} ${arg}"
-			fi
-			;;
-		*)
-			if [ -z "$args" ]; then
-				args=$arg
-			else
-				args="${args} ${arg}"
-			fi
-			;;
+		-n)	cmd=mnewbox ;;
+		-h)	horiz=-h ;;
+		-*)	collect opts ${arg} ;;
+		*)	[ -z "${arg0}" ] && arg0=${arg}
+			collect args ${arg} ;;
 	esac
 done
 
-tmux split-window ${horiz} "${cmd} ${args}; mloop ${opts}"
+tmux split-window ${horiz} "${cmd} ${args}; env CMD=${cmd} FOLDER=${arg0} mloop ${opts}"

@@ -2,6 +2,10 @@
 
 # msummary - summarize a single message on stdin
 
+# There is special-purpose knowledge of specific mailing lists in
+# here, because I prefer to see a summary of OpenBSD changelog
+# messages so I don't have to guess what they are about.  YMMV.
+
 use strict;
 use warnings;
 use POSIX qw(strftime);

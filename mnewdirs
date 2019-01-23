@@ -1,4 +1,4 @@
-#!/usr/bin/perl
+#!/usr/bin/env perl
 ##
 # find maildirs with new messages by default spit out lines like this:
 #     dir count

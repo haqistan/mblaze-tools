@@ -1,21 +1,22 @@
 #!/bin/sh
 mvcp=cp
 case "$0" in
-    *mv) mvcp=mv ;;
-    *cp) mvcp=cp ;;
-    *) echo $0: what am i supposed to be'?'
-       exit 1 ;;
+	*mv) mvcp=mv ;;
+	*cp) mvcp=cp ;;
+	*)
+		echo $0: what am i supposed to be'?'
+		exit 1 ;;
 esac
 dst="$1"
 [ -z "${dst}" ] && {
-    echo "no destination"
-    exit 1
+	echo "no destination"
+	exit 1
 }
 [ ! -d ${dst} ] && dst="mail/${dst}"
 [ ! -d ${dst} ] && {
-    echo "destination not a directory: ${dst}"
-    exit 1
+	echo "destination not a directory: ${dst}"
+	exit 1
 }
 while read filename; do
-    [ -f ${filename} ] && echo ${mvcp} ${filename} ${dst}
+	[ -f ${filename} ] && echo ${mvcp} ${filename} ${dst}
 done

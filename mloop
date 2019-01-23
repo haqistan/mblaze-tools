@@ -18,7 +18,8 @@ tmux_reply () {
 	tmux new-window -n "[reply $msgno]" "env EDITOR=emax mrep $* ${msgno}; wait_for_me"
 }
 
-while read nothing?'> ' afterargs; do
+echo folder: ${FOLDER}, cmd: ${CMD}
+while read nothing?"${FOLDER}> " afterargs; do
 	cmd="mdisplay ${mdopts}"
 #	echo nothing: ${nothing}, afterargs: ${afterargs}
 	case ${nothing} in
@@ -34,6 +35,22 @@ while read nothing?'> ' afterargs; do
 			esac
 			;;
 		quit|exit) exit 0 ;;
+		refresh|reload|open|clear)
+			[ -n "${CMD}" ] && {
+				[ -n "${afterargs}" ] && FOLDER=${afterargs}
+				echo ${CMD} ${FOLDER}
+				${CMD} ${FOLDER}
+			}
+			continue
+			;;
+		grep)
+			magrep ${afterargs} | mthread | mscan
+			continue
+			;;
+		restrict)
+			magrep ${afterargs} | mthread | mseq -S | mscan
+			continue
+			;;
 		[0-9]*) tmux set-buffer ${nothing} ;;
 	esac
 	msgno=$(tmux show-buffer)
