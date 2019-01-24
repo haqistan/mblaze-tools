@@ -2,7 +2,10 @@
 
 # mrespam - mark a message as spam and move it to Spam
 
-spamdir=${SPAMDIR-${HOME}/mail/Spam}
+MBLAZE=${MBLAZE-$HOME/.mblaze}
+basedir=$(mhdr -h MaildirBase "$MBLAZE/profile")
+basedir=${basedir-$HOME/Maildir}
+spamdir=${SPAMDIR-${basedir}/Spam}
 bmf_flags=-S
 
 respamify () {

@@ -1,11 +1,15 @@
 #!/bin/sh
 # list some inbox 
-inbox=${INBOX-$HOME/mail/INBOX}
+MBLAZE=${MBLAZE-$HOME/.mblaze}
+basedir=$(mhdr -h MaildirBase "$MBLAZE/profile")
+basedir=${basedir-$HOME/Maildir}
+inbox=$(mhdr -h Inbox "$MBLAZE/profile")
+inbox=${inbox-${basedir}/INBOX}
 [ -n "$1" ] && {
 	if [ -d "$1" ]; then
 		inbox="$1"
 	else
-		inbox="${HOME}/mail/$1"
+		inbox="${basedir}/$1"
 	fi
 	shift
 }

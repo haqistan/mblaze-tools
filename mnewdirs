@@ -15,7 +15,18 @@ use Getopt::Std;
 
 our %newdirs = (); # dir => #files
 our %opts;
-our $maildir = $ENV{'MAILDIR'} || $ENV{"HOME"}."/mail";
+our $MBLAZE = $ENV{'MBLAZE'} || join('/',$ENV{'HOME'},'.mblaze');
+
+sub mhdr {
+	open(MHDR, "mhdr -h $_[0] $MBLAZE/profile |")
+		or die "mhdr: $!";
+	chomp(my $val = <MHDR>);
+	close(MHDR);
+	return $val;
+}
+
+our $maildir = mhdr("MaildirBase") || $ENV{'MAILDIR'} ||
+	join('/',$ENV{'HOME'},'mail');
 $maildir = $ENV{"HOME"}."/Maildir" unless -d $maildir;
 die "no maildir and no MAILDIR set!?\n" unless -d $maildir;
 

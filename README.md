@@ -3,13 +3,26 @@
 I make no advertisements for these scripts except: they are generally
 short and do one thing.  Well...
 
-They are my workflow on top of mblaze, which is pretty minimal.  I'm
+They are my workflow on top of mblaze(7), which is pretty minimal.  I'm
 not really happy with them, but I use them every day.  The basic idea
 is to use tmux(1) as my UI "toolkit", since it is easy to integrate
 with on the command line.  Several scripts do things with tmux, either
 creating windows/panes or reading/setting the main cutbuffer.
 
-Use at your own risk.  On a POSIX system.  Preferably OpenBSD.
+You should read mblaze(7) and the rest of the mblaze man pages if you
+want to understand what is going on here.  These scripts augment and
+extend what mblaze does to suit my own workflow.  YMMV.
+
+We pile on with mblaze and store any config information in
+~/.mblaze/profile in the form of text that looks like email headers.
+Things you can set there:
+
+* MaildirBase: the base directory of your maildir tree
+* Inbox: the path to your main in-box
+
+Use at your own risk.  On a POSIX system.  Preferably OpenBSD.  I
+store my maildir tree under ~/mail, and start this mess from inside of
+tmux by running "mpane -n" to see new messages in my in-box.
 
 A brief description of what these things do:
 

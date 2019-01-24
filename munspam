@@ -1,8 +1,11 @@
 #!/bin/sh
 
 # munspam - unmark a message as spam and put it back in INBOX
-
-inbox=${INBOX-${HOME}/mail/INBOX}
+MBLAZE=${MBLAZE-$HOME/.mblaze}
+basedir=$(mhdr -h MaildirBase "$MBLAZE/profile")
+basedir=${basedir-$HOME/Maildir}
+inbox=$(mhdr -h Inbox "$MBLAZE/profile")
+inbox=${inbox-${basedir}/INBOX}
 bmf_flags=-N
 
 unspamify () {
