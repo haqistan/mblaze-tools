@@ -1,10 +1,24 @@
 #!/bin/sh
-# unmark a message as spam and put it back in INBOX
+
+# munspam - unmark a message as spam and put it back in INBOX
+
 inbox=${INBOX-${HOME}/mail/INBOX}
 bmf_flags=-N
-while read filename; do
-    name=$(basename $filename)
-    okf=${inbox}/new/${name}
-    bmf ${bmf_flags} -p < ${filename} | tee ${okf} | msummary
-    rm ${filename}
-done
+
+unspamify () {
+	typedef filename name okf
+	while read filename; do
+		name=$(basename $filename)
+		okf=${inbox}/new/${name}
+		bmf ${bmf_flags} -p < ${filename} | tee ${okf} | msummary
+		rm ${filename}
+	done
+}
+
+if [ -z "$*" ]; then
+	unspamify
+else
+	for picker in $*; do
+		mpick ${picker} | unspamify
+	done
+fi

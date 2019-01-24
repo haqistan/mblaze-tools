@@ -1,10 +1,24 @@
 #!/bin/sh
-# mark a message as spam and move it to Spam
+
+# mrespam - mark a message as spam and move it to Spam
+
 spamdir=${SPAMDIR-${HOME}/mail/Spam}
 bmf_flags=-S
-while read filename; do
-    name=$(basename $filename)
-    spamf=${spamdir}/new/${name}
-    bmf ${bmf_flags} -p < ${filename} | tee ${spamf} | msummary
-    rm ${filename}
-done
+
+respamify () {
+	typeset filename name spamf
+	while read filename; do
+		name=$(basename $filename)
+		spamf=${spamdir}/new/${name}
+		bmf ${bmf_flags} -p < ${filename} | tee ${spamf} | msummary
+		rm ${filename}
+	done
+}
+
+if [ -z "$*" ]; then
+	respamify
+else
+	for picker in $*; do
+		mpick ${picker} | respamify
+	done
+fi

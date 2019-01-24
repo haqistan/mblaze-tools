@@ -18,8 +18,28 @@ tmux_reply () {
 	tmux new-window -n "[reply $msgno]" "env EDITOR=emax mrep $* ${msgno}; wait_for_me"
 }
 
+rescan () {
+	typeset nothing afterargs
+	nothing=$1
+	shift
+	afterargs="$*"
+	[ -n "${CMD}" ] && {
+		if [ ${nothing} = inbox ]; then
+			FOLDER=${INBOX_FOLDER-INBOX}
+		elif [ -n "${afterargs}" ]; then
+			FOLDER=${afterargs}
+		fi
+		echo ${CMD} ${FOLDER}
+		${CMD} ${FOLDER}
+	}
+}
+
+msgno=
+[ -z "${FOLDER}" ] && FOLDER=${INBOX_FOLDER-INBOX}
+new=
+[ "${CMD}" = "mnewbox" ] && new='*'
 echo folder: ${FOLDER}, cmd: ${CMD}
-while read nothing?"${FOLDER}> " afterargs; do
+while read nothing?"${FOLDER}${new}> " afterargs; do
 	cmd="mdisplay ${mdopts}"
 #	echo nothing: ${nothing}, afterargs: ${afterargs}
 	case ${nothing} in
@@ -34,14 +54,40 @@ while read nothing?"${FOLDER}> " afterargs; do
 					;;
 			esac
 			;;
-		quit|exit) exit 0 ;;
-		refresh|reload|open|clear)
-			[ -n "${CMD}" ] && {
-				[ -n "${afterargs}" ] && FOLDER=${afterargs}
-				echo ${CMD} ${FOLDER}
-				${CMD} ${FOLDER}
-			}
+		quit|exit)
+			exit 0
+			;;
+		refresh|reload|open|clear|inbox)
+			rescan ${nothing} ${afterargs}
 			continue
+			;;
+		all)
+			CMD=minbox
+			new=
+			rescan ${nothing} ${afterargs}
+			continue
+			;;
+		new)
+			CMD=mnewbox
+			new='*'
+			rescan ${nothing} ${afterargs}
+			continue
+			;;
+		spam)
+			if [ -n "${afterargs}" ]; then
+				echo mrespam ${afterargs}
+				mrespam ${afterargs}
+				continue
+			fi
+			cmd=mrespam
+			;;
+		unspam)
+			if [ -n "${afterargs}" ]; then
+				echo munspam ${afterargs}
+				munspam ${afterargs}
+				continue
+			fi
+			cmd=munspam
 			;;
 		grep)
 			magrep ${afterargs} | mthread | mscan
@@ -49,6 +95,14 @@ while read nothing?"${FOLDER}> " afterargs; do
 			;;
 		restrict)
 			magrep ${afterargs} | mthread | mseq -S | mscan
+			continue
+			;;
+		dirs)
+			mnewdirs
+			continue
+			;;
+		help)
+			echo '[#] | reply, quit, refresh, open, inbox, all, new, spam, unspam, grep, restrict, dirs'
 			continue
 			;;
 		[0-9]*) tmux set-buffer ${nothing} ;;

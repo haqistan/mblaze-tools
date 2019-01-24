@@ -1,5 +1,7 @@
 #!/bin/sh
 
+# mdisplay [-nxt] msgno|filename
+
 [ -z "$*" ] && {
 	echo usage: $(basename $0) [-xtn] [mless_args...]
 	exit 1
@@ -49,7 +51,7 @@ for arg in $*; do
 done
 
 if [ $use_xterm -ne 0 ]; then
-	xterm -geom 80x34 -e "mless $*"
+	xterm -geom 80x32 -title "[msg $*]" -e "mless $*"
 elif [ $use_tmux -ne 0 ]; then
 	tmux new-window -n "[msg $*]" "mless $*"
 else
