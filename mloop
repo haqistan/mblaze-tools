@@ -8,6 +8,8 @@
 
 mdopts="$*"
 
+SCRIPT=$0
+
 #stty -echo
 #trap 'stty echo; exit 0' INT QUIT TERM
 
@@ -34,46 +36,96 @@ rescan () {
 	}
 }
 
+set_args () {
+	typeset the_args
+	the_args="$*"
+	case ${the_args} in
+		[0-9]*)
+			set -- ${the_args}
+			tmux set-buffer $1
+			shift
+			the_args="$*"
+			;;
+	esac
+	echo ${the_args}
+}
+
+give_help () {
+	case $1 in
+		help)
+			if [ -z "$2" ]; then
+				grep '#\+' $SCRIPT | sed -e 's/^.*#\+ //'
+			else
+				grep "#\+ $2" $SCRIPT | sed -e 's/^.*#\+ //'
+			fi
+			;;
+		brief)
+			typeset cmds
+			cmds="$(grep '#\+' $SCRIPT | sed -e 's/^.*#\+ //' | awk '{ print $1 }' | sort)"
+			echo "one of: $(echo $cmds)"
+			;;
+	esac
+}
+
 msgno=
 [ -z "${FOLDER}" ] && FOLDER=${INBOX_FOLDER-INBOX}
 new=
 [ "${CMD}" = "mnewbox" ] && new='*'
 echo folder: ${FOLDER}, cmd: ${CMD}
+give_help brief
 while read nothing?"${FOLDER}${new}> " afterargs; do
 	cmd="mdisplay ${mdopts}"
-#	echo nothing: ${nothing}, afterargs: ${afterargs}
 	case ${nothing} in
-		reply)
+		reply) #+ reply [msgno] - reply to cur/given msg in new window
 			cmd=tmux_reply
-			case ${afterargs} in
-				[0-9]*)
-					set -- ${afterargs}
-					tmux set-buffer $1
-					shift
-					afterargs="$*"
-					;;
-			esac
+			afterargs=$(set_args ${afterargs})
 			;;
-		quit|exit)
+		mime|extract) #+ mime [msgno] - display mime structure of msg
+			#+ extract msgno part - extract given part of msgno
+			cmd="mshow -t"
+			[ ${nothing} = extract ] && cmd="mshow -x"
+			afterargs=$(set_args ${afterargs})
+			;;
+		mv|cp)	#+ mv [msgno] dest-folder - move msg to given folder
+			#+ cp [msgno] dest-folder - copy msg to given folder
+			cmd=m${nothing}
+			afterargs=$(set_args ${afterargs})
+			[ -z "${afterargs}" ] && {
+				usage "${nothing} [msgno] dest-folder"
+				continue
+			}
+			;;
+		decrypt) #+ decrypt [msgno] - run mdecrypt on message
+			cmd=mdecrypt
+			afterargs=$(set_args ${afterargs})
+			;;
+		cat) #+ cat [msgno] - dump raw message to stdout
+			cmd=mshow
+			afterargs=$(set_args ${afterargs})
+			;;
+		quit|exit) #+ quit - exit program
 			exit 0
 			;;
-		refresh|reload|open|clear|inbox)
+		refresh|open|clear|inbox) #+ refresh - re-list current folder
+			#+ open folder - switch to different folder
+			#+ clear - re-list current folder
+			#+ inbox - switch to in-box and list
 			rescan ${nothing} ${afterargs}
 			continue
 			;;
-		all)
+		all) #+ all - switch from new view to all messages in folder
 			CMD=minbox
 			new=
 			rescan ${nothing} ${afterargs}
 			continue
 			;;
-		new)
+		new) #+ new - switch from all messages to only new ones
 			CMD=mnewbox
 			new='*'
 			rescan ${nothing} ${afterargs}
 			continue
 			;;
-		spam)
+		spam) #+ spam [msgno] - run message through mrespam
 			if [ -n "${afterargs}" ]; then
 				echo mrespam ${afterargs}
 				mrespam ${afterargs}
@@ -81,7 +133,7 @@ while read nothing?"${FOLDER}${new}> " afterargs; do
 			fi
 			cmd=mrespam
 			;;
-		unspam)
+		unspam) #+ unspam [msgno] - run message through munspam
 			if [ -n "${afterargs}" ]; then
 				echo munspam ${afterargs}
 				munspam ${afterargs}
@@ -89,20 +141,21 @@ while read nothing?"${FOLDER}${new}> " afterargs; do
 			fi
 			cmd=munspam
 			;;
-		grep)
+		grep) #+ grep args... - run magrep args on current folder
 			magrep ${afterargs} | mthread | mscan
 			continue
 			;;
-		restrict)
+		restrict) #+ restrict args - run magrep and set results as current seq
 			magrep ${afterargs} | mthread | mseq -S | mscan
 			continue
 			;;
-		dirs)
+		dirs) #+ dirs - list Maildirs with new mail in them
 			mnewdirs
 			continue
 			;;
-		help)
-			echo '[#] | reply, quit, refresh, open, inbox, all, new, spam, unspam, grep, restrict, dirs'
+		help|brief) #+ help - list commands and what they do
+			#+ brief - print one-line summary of commands
+			give_help ${nothing} ${afterargs}
 			continue
 			;;
 		[0-9]*) tmux set-buffer ${nothing} ;;

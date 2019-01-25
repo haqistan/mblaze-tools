@@ -1,6 +1,7 @@
 #!/bin/sh
 
 # munspam - unmark a message as spam and put it back in INBOX
+
 MBLAZE=${MBLAZE-$HOME/.mblaze}
 basedir=$(mhdr -h MaildirBase "$MBLAZE/profile")
 basedir=${basedir-$HOME/Maildir}
@@ -9,7 +10,7 @@ inbox=${inbox-${basedir}/INBOX}
 bmf_flags=-N
 
 unspamify () {
-	typedef filename name okf
+	typeset filename name okf
 	while read filename; do
 		name=$(basename $filename)
 		okf=${inbox}/new/${name}
