@@ -10,6 +10,14 @@ mdopts="$*"
 
 SCRIPT=$0
 
+MBLAZE=${MBLAZE-$HOME/.mblaze}
+basedir=$(mhdr -h MaildirBase "$MBLAZE/profile")
+basedir=${basedir-$HOME/Maildir}
+inbox_name=$(mhdr -h InboxName "$MBLAZE/profile")
+[ -z "${inbox_name}" ] && inbox_name=INBOX
+inbox=$(mhdr -h Inbox "$MBLAZE/profile")
+[ -z "${inbox}" ] && inbox=${basedir}/${inbox_name}
+
 #stty -echo
 #trap 'stty echo; exit 0' INT QUIT TERM
 
@@ -27,7 +35,7 @@ rescan () {
 	afterargs="$*"
 	[ -n "${CMD}" ] && {
 		if [ ${nothing} = inbox ]; then
-			FOLDER=${INBOX_FOLDER-INBOX}
+			FOLDER=${INBOX-$inbox_name}
 		elif [ -n "${afterargs}" ]; then
 			FOLDER=${afterargs}
 		fi
@@ -67,8 +75,12 @@ give_help () {
 	esac
 }
 
+usage () {
+	echo "usage: $*"
+}
+
 msgno=
-[ -z "${FOLDER}" ] && FOLDER=${INBOX_FOLDER-INBOX}
+[ -z "${FOLDER}" ] && FOLDER=${INBOX-$inbox_name}
 new=
 [ "${CMD}" = "mnewbox" ] && new='*'
 echo folder: ${FOLDER}, cmd: ${CMD}
@@ -94,6 +106,22 @@ while read nothing?"${FOLDER}${new}> " afterargs; do
 				usage "${nothing} [msgno] dest-folder"
 				continue
 			}
+			;;
+		inc) #+ inc [all] - incorporate new mail into cur (mark all read in folder)
+			if [ -z "${afterargs}" ]; then
+				echo minc ${FOLDER}
+				minc ${basedir}/${FOLDER} | mscan
+				[ -n "${new}" ] && {
+					new=
+					CMD=minbox
+				}
+			elif [ "${afterargs}" = all ]; then
+				mincall
+			else
+				usage "inc what?"
+				continue
+			fi
+			continue
 			;;
 		decrypt) #+ decrypt [msgno] - run mdecrypt on message
 			cmd=mdecrypt
@@ -159,6 +187,10 @@ while read nothing?"${FOLDER}${new}> " afterargs; do
 			continue
 			;;
 		[0-9]*) tmux set-buffer ${nothing} ;;
+		*) usage "not recognized: ${nothing}"
+		   give_help brief
+		   continue
+		   ;;
 	esac
 	msgno=$(tmux show-buffer)
 	if [ -n "${msgno}" ]; then

@@ -1,10 +1,15 @@
 #!/bin/sh
-# list some inbox 
+
+# minbox - list some inbox 
+
 MBLAZE=${MBLAZE-$HOME/.mblaze}
 basedir=$(mhdr -h MaildirBase "$MBLAZE/profile")
 basedir=${basedir-$HOME/Maildir}
+inbox_name=$(mhdr -h InboxName "$MBLAZE/profile")
+[ -z "${inbox_name}" ] && inbox_name=INBOX
 inbox=$(mhdr -h Inbox "$MBLAZE/profile")
-inbox=${inbox-${basedir}/INBOX}
+[ -z "${inbox}" ] && inbox=${basedir}/${inbox_name}
+
 [ -n "$1" ] && {
 	if [ -d "$1" ]; then
 		inbox="$1"

@@ -5,8 +5,10 @@
 MBLAZE=${MBLAZE-$HOME/.mblaze}
 basedir=$(mhdr -h MaildirBase "$MBLAZE/profile")
 basedir=${basedir-$HOME/Maildir}
+inbox_name=$(mhdr -h InboxName "$MBLAZE/profile")
+[ -z "${inbox_name}" ] && inbox_name=INBOX
 inbox=$(mhdr -h Inbox "$MBLAZE/profile")
-inbox=${inbox-${basedir}/INBOX}
+[ -z "${inbox}" ] && inbox=${basedir}/${inbox_name}
 bmf_flags=-N
 
 unspamify () {
