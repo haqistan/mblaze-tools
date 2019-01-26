@@ -17,6 +17,7 @@ We pile on with mblaze and store any config information in
 ~/.mblaze/profile in the form of text that looks like email headers.
 Things you can set there:
 
+* MpaneLines: size in lines of pane mpane creates for mloop
 * MaildirBase: the base directory of your maildir tree
 * InboxName: the relative path of your inbox under Maildir
 * Inbox: full path to your main in-box

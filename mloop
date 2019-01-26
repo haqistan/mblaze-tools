@@ -2,9 +2,13 @@
 
 # mloop - a thin command-line interface to a mail folder using mblaze
 
-# this script goes with mpane, which invokes in a new tmux window.  it
-# reads from stdin and allows for simple display and reply of messages
-# in the folder.
+# This script goes with mpane, which invokes in a new tmux window.  It
+# reads commands from stdin and allows for simple display and reply of
+# messages in the folder.  It can be configured in ~/.mblaze/profile,
+# see the README.md file.
+
+# type "brief" at the prompt for a brief usage summary
+# type "help" for more detailed help.
 
 mdopts="$*"
 
@@ -17,9 +21,6 @@ inbox_name=$(mhdr -h InboxName "$MBLAZE/profile")
 [ -z "${inbox_name}" ] && inbox_name=INBOX
 inbox=$(mhdr -h Inbox "$MBLAZE/profile")
 [ -z "${inbox}" ] && inbox=${basedir}/${inbox_name}
-
-#stty -echo
-#trap 'stty echo; exit 0' INT QUIT TERM
 
 tmux_reply () {
 	typeset msgno
@@ -121,7 +122,6 @@ while read nothing?"${FOLDER}${new}> " afterargs; do
 				mincall
 			else
 				usage "inc what?"
-				continue
 			fi
 			continue
 			;;
@@ -185,7 +185,7 @@ while read nothing?"${FOLDER}${new}> " afterargs; do
 			continue
 			;;
 		help|brief) #+ help - list commands and what they do
-			#+ brief - print one-line summary of commands
+			#+ brief - print a brief usage summary/command list
 			give_help ${nothing} ${afterargs}
 			continue
 			;;

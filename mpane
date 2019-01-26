@@ -2,6 +2,9 @@
 
 # mpane [-nh] [-mloop_options] [cmd_args]
 
+# set MpaneLines in ~/.mblaze/profile to change
+# the default size of the pane we create in tmux
+
 MBLAZE=${MBLAZE-${HOME}/.mblaze}
 
 # collect varname ...
@@ -36,6 +39,6 @@ for arg in $*; do
 	esac
 done
 
-lines=$(mhdr -h mpane-lines "$MBLAZE/profile")
+lines=$(mhdr -h MpaneLines "$MBLAZE/profile")
 [ -z "$lines" ] && lines=20
 tmux split-window ${horiz} -l ${lines} "${cmd} ${args}; env CMD=${cmd} FOLDER=${arg0} mloop ${opts}"
