@@ -35,11 +35,19 @@ sub check {
 	    $newdirs{$File::Find::dir}++;
 }
 
+sub mungdir {
+	my($dir) = @_;
+	if (!$opts{'n'}) {
+		$dir =~ s,^${maildir}/,,;
+	}
+	return dirname($dir);
+}
+
 getopts('n',\%opts);
 our $fmt = $opts{'n'} ? "%s\n" : "%s %d\n";
 find(\&check, $maildir);
 foreach (sort keys %newdirs) {
-	my @out = ($opts{'n'} ? dirname($_) : $_);
+	my @out = (mungdir($_));
 	push(@out, $newdirs{$_}) unless $opts{'n'};
 	printf($fmt,@out);
 }

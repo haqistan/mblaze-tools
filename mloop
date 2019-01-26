@@ -2,9 +2,9 @@
 
 # mloop - a thin command-line interface to a mail folder using mblaze
 
-# this script goes with mpane, which invokes it in a new tmux window
-# it reads from stdin and allows for simple display and reply of
-# messages in the folder mpane dumps out above us.
+# this script goes with mpane, which invokes in a new tmux window.  it
+# reads from stdin and allows for simple display and reply of messages
+# in the folder.
 
 mdopts="$*"
 
@@ -36,7 +36,8 @@ rescan () {
 	[ -n "${CMD}" ] && {
 		if [ ${nothing} = inbox ]; then
 			FOLDER=${INBOX-$inbox_name}
-		elif [ -n "${afterargs}" ]; then
+		elif [ ${nothing} = open -o ${nothing} = cd ]; then
+			[ -z "${afterargs}" ] && afterargs=${INBOX-$inbox_name}
 			FOLDER=${afterargs}
 		fi
 		echo ${CMD} ${FOLDER}
@@ -71,6 +72,7 @@ give_help () {
 			typeset cmds
 			cmds="$(grep '#\+' $SCRIPT | sed -e 's/^.*#\+ //' | awk '{ print $1 }' | sort)"
 			echo "one of: $(echo $cmds)"
+			echo "or: type a msg# or select a msg# with the mouse in tmux and hit RETURN to display it"
 			;;
 	esac
 }
@@ -134,8 +136,9 @@ while read nothing?"${FOLDER}${new}> " afterargs; do
 		quit|exit) #+ quit - exit program
 			exit 0
 			;;
-		refresh|open|clear|inbox) #+ refresh - re-list current folder
+		list|open|cd|clear|inbox) #+ list - (re)list current folder
 			#+ open folder - switch to different folder
+			#+ cd folder - switch to different folder
 			#+ clear - re-list current folder
 			#+ inbox - switch to in-box and list
 			rescan ${nothing} ${afterargs}
@@ -178,7 +181,7 @@ while read nothing?"${FOLDER}${new}> " afterargs; do
 			continue
 			;;
 		dirs) #+ dirs - list Maildirs with new mail in them
-			mnewdirs
+			mnewdirs | rs
 			continue
 			;;
 		help|brief) #+ help - list commands and what they do
@@ -187,10 +190,12 @@ while read nothing?"${FOLDER}${new}> " afterargs; do
 			continue
 			;;
 		[0-9]*) tmux set-buffer ${nothing} ;;
-		*) usage "not recognized: ${nothing}"
-		   give_help brief
-		   continue
-		   ;;
+
+		[a-z]*)
+			usage "not recognized: ${nothing}"
+			give_help brief
+			continue
+			;;
 	esac
 	msgno=$(tmux show-buffer)
 	if [ -n "${msgno}" ]; then
