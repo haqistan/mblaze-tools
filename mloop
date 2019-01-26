@@ -95,10 +95,14 @@ while read nothing?"${FOLDER}${new}> " afterargs; do
 			cmd=tmux_reply
 			afterargs=$(set_args ${afterargs})
 			;;
-		mime|extract) #+ mime [msgno] - display mime structure of msg
+		mime|extract|headers) #+ mime [msgno] - display mime structure of msg
 			#+ extract msgno part - extract given part of msgno
-			cmd="mshow -t"
-			[ ${nothing} = extract ] && cmd="mshow -x"
+			#+ headers [msgno] - dump headers of msg to stdout
+			case ${nothing} in
+				mime) cmd="mshow -t" ;;
+				extract) cmd="mshow -x" ;;
+				headers) cmd="mshow -q" ;;
+			esac
 			afterargs=$(set_args ${afterargs})
 			;;
 		mv|cp)	#+ mv [msgno] dest-folder - move msg to given folder
