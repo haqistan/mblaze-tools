@@ -3,18 +3,25 @@
 I make no advertisements for these scripts except: they are generally
 short and do one thing.  Well...
 
-They are my workflow on top of mblaze(7), which is pretty minimal.  I'm
-not really happy with them, but I use them every day.  The basic idea
-is to use tmux(1) as my UI "toolkit", since it is easy to integrate
-with on the command line.  Several scripts do things with tmux, either
-creating windows/panes or reading/setting the main cutbuffer.
+They enable my workflow on top of mblaze(7), which is pretty minimal.
+I use them every day.  I use tmux(1) as my UI "toolkit", since it is
+easy to integrate with on the command line.  Several scripts do things
+with tmux, either creating windows/panes or reading/setting the main
+cutbuffer, where certain commands there is a msg# in the current
+sequence.  This means you can select a msg# with the mouse in tmux and
+operate on it; not quite point-and-click but close enough for me.
 
 You should read mblaze(7) and the rest of the mblaze man pages if you
-want to understand what is going on here.  These scripts augment and
-extend what mblaze does to suit my own workflow.  YMMV.
+want to understand what is going on here; also, reading
+[tmux(1)](https://man.openbsd.org/tmux) is not a terrible idea.  These
+scripts augment and extend what mblaze does to suit my own workflow.
+YMMV.
 
-We pile on with mblaze and store any config information in
-~/.mblaze/profile in the form of text that looks like email headers.
+I pile on with mblaze and store any config information in
+~/.mblaze/profile in the form of text that looks like email headers;
+this makes it easy to query the configuration with mblaze's mhdr(1)
+utility.
+
 Things you can set there:
 
 * MpaneLines: size in lines of pane mpane creates for mloop
@@ -37,9 +44,14 @@ tmux by running "mpane -n" to see new messages in my in-box.  My
 
 I use [fdm](https://github.com/nicm/fdm) to fetch my mail and drop it
 into various Maildrirs in my mail tree as it comes in; it's nice and
-well-documented, FWIW.  I generally use the msummary command from
+well-documented, FWIW.  I generally use the msummary script from
 inside of fdm, to display a summary of what is happening as it goes by
 in a tmux pane.
+
+I also use [bmf](http://sourceforge.net/projects/bmf/) for last-gasp
+spam filtering, again via my fdm config.  The mspam and munspam
+scripts tell bmf that a message was a false negative or positive,
+respectively.  They aren't relevant to anyone who doesn't use bmf.
 
 A brief description of what these scripts do:
 
