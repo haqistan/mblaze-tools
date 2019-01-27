@@ -21,14 +21,29 @@ inbox_name=$(mhdr -h InboxName "$MBLAZE/profile")
 [ -z "${inbox_name}" ] && inbox_name=INBOX
 inbox=$(mhdr -h Inbox "$MBLAZE/profile")
 [ -z "${inbox}" ] && inbox=${basedir}/${inbox_name}
+editor_cmd=$(mhdr -h Editor "$MBLAZE/profile")
+[ -z "${editor_cmd}" ] && editor_cmd=${EDITOR-${VISUAL-vi}}
+EDITOR=${EDITOR-$editor_cmd}
 
 tmux_send () {
-	typeset cmd msgno
+	typeset cmd args msgno fullcmd title
 	cmd=$1
 	shift
-	msgno=$1
-	shift
-	tmux new-window -n "[$cmd $msgno]" "env EDITOR=$EDITOR $cmd $* ${msgno}; wait_for_me"
+	case ${cmd} in
+		mcom)
+			fullcmd="${cmd} $*"
+			title="mail: compose"
+			;;
+		mfwd|mrep)
+			args=$(set_args $*)
+			msgno=$(tmux show-buffer)
+			title="reply"
+			[ ${cmd} = mfwd ] && titla="fwd"
+			title="${title} ${msgno}"
+			fullcmd="${cmd} ${args} -- ${msgno}"
+			;;
+	esac
+	tmux new-window -n "[$title]" "echo ${fullcmd}; env EDITOR=$EDITOR ${fullcmd}; wait_for_me"
 }
 
 reply () {
@@ -86,8 +101,9 @@ give_help () {
 		brief)
 			typeset cmds
 			cmds="$(grep '#\+' $SCRIPT | sed -e 's/^.*#\+ //' | awk '{ print $1 }' | sort)"
-			echo "one of: $(echo $cmds)"
-			echo "or: type a msg# or select a msg# with the mouse in tmux and hit RETURN to display it"
+			echo "one of:"
+			echo $cmds | rs
+			echo "or: type msg# / select msg# w/mouse in tmux and hit RETURN to see it in new pane"
 			;;
 	esac
 }
@@ -105,11 +121,11 @@ give_help brief
 while read nothing?"${FOLDER}${new}> " afterargs; do
 	cmd="mdisplay ${mdopts}"
 	case ${nothing} in
-		reply|send|fwd) #+ reply [msgno] [mcom-opts] - reply to cur/given msg in new window
-			#+ send [mcom-opts] - send new message, c.f. mcom(1)
+		reply|fwd|send) #+ reply [msgno] [mcom-opts] - reply to cur/given msg in new window
 			#+ fwd [msgno] [mcom-opts] - forward message
-			cmd=${nothing}
-			afterargs=$(set_args ${afterargs})
+			#+ send [mcom-opts] - send new message, c.f. mcom(1)
+			${nothing} ${afterargs}
+			continue
 			;;
 		mime|extract|headers) #+ mime [msgno] - display mime structure of msg
 			#+ extract msgno part - extract given part of msgno
