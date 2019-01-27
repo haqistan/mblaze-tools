@@ -6,6 +6,9 @@
 # the default size of the pane we create in tmux
 
 MBLAZE=${MBLAZE-${HOME}/.mblaze}
+editor_cmd=$(mhdr -h Editor "$MBLAZE/profile")
+[ -z "${editor_cmd}" ] && editor_cmd=${EDITOR-${VISUAL-vi}}
+EDITOR=${EDITOR-$editor_cmd}
 
 # collect varname ...
 collect () {
@@ -41,4 +44,4 @@ done
 
 lines=$(mhdr -h MpaneLines "$MBLAZE/profile")
 [ -z "$lines" ] && lines=20
-tmux split-window ${horiz} -l ${lines} "${cmd} ${args}; env CMD=${cmd} FOLDER=${arg0} mloop ${opts}"
+tmux split-window ${horiz} -l ${lines} "${cmd} ${args}; env CMD=${cmd} FOLDER=${arg0} EDITOR=$EDITOR mloop ${opts}"

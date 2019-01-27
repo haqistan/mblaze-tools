@@ -22,11 +22,25 @@ inbox_name=$(mhdr -h InboxName "$MBLAZE/profile")
 inbox=$(mhdr -h Inbox "$MBLAZE/profile")
 [ -z "${inbox}" ] && inbox=${basedir}/${inbox_name}
 
-tmux_reply () {
-	typeset msgno
+tmux_send () {
+	typeset cmd msgno
+	cmd=$1
+	shift
 	msgno=$1
 	shift
-	tmux new-window -n "[reply $msgno]" "env EDITOR=emax mrep $* ${msgno}; wait_for_me"
+	tmux new-window -n "[$cmd $msgno]" "env EDITOR=$EDITOR $cmd $* ${msgno}; wait_for_me"
+}
+
+reply () {
+	tmux_send mrep $*
+}
+
+send () {
+	tmux_send mcom $*
+}
+
+fwd () {
+	tmux_send mfwd $*
 }
 
 rescan () {
@@ -86,13 +100,15 @@ msgno=
 [ -z "${FOLDER}" ] && FOLDER=${INBOX-$inbox_name}
 new=
 [ "${CMD}" = "mnewbox" ] && new='*'
-echo folder: ${FOLDER}, cmd: ${CMD}
+echo folder: ${FOLDER}, cmd: ${CMD}, editor: ${EDITOR}
 give_help brief
 while read nothing?"${FOLDER}${new}> " afterargs; do
 	cmd="mdisplay ${mdopts}"
 	case ${nothing} in
-		reply) #+ reply [msgno] - reply to cur/given msg in new window
-			cmd=tmux_reply
+		reply|send|fwd) #+ reply [msgno] [mcom-opts] - reply to cur/given msg in new window
+			#+ send [mcom-opts] - send new message, c.f. mcom(1)
+			#+ fwd [msgno] [mcom-opts] - forward message
+			cmd=${nothing}
 			afterargs=$(set_args ${afterargs})
 			;;
 		mime|extract|headers) #+ mime [msgno] - display mime structure of msg
