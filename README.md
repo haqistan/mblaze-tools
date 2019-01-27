@@ -13,9 +13,7 @@ operate on it; not quite point-and-click but close enough for me.
 
 You should read mblaze(7) and the rest of the mblaze man pages if you
 want to understand what is going on here; also, reading
-[tmux(1)](https://man.openbsd.org/tmux) is not a terrible idea.  These
-scripts augment and extend what mblaze does to suit my own workflow.
-YMMV.
+[tmux(1)](https://man.openbsd.org/tmux) is not a terrible idea.
 
 I pile on with mblaze and store any config information in
 ~/.mblaze/profile in the form of text that looks like email headers;
@@ -32,7 +30,7 @@ Things you can set there:
 It's probably better to set MaildirBase and InboxName and leave Inbox
 alone but there are situations where you can't.  I generally run all
 these tools in my home directory and use relative paths to name
-folders, but again YMMV.
+folders.
 
 Use at your own risk.  On a POSIX system.  Preferably OpenBSD.  I
 store my maildir tree under ~/mail, and start this mess from inside of
