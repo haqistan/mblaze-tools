@@ -28,20 +28,16 @@ collect () {
 
 horiz=
 args=
-cmd=minbox
 opts=
-arg0=
 
 for arg in $*; do
 	case $arg in
-		-n)	cmd=mnewbox ;;
 		-h)	horiz=-h ;;
 		-*)	collect opts ${arg} ;;
-		*)	[ -z "${arg0}" ] && arg0=${arg}
-			collect args ${arg} ;;
+		*)	collect args ${arg} ;;
 	esac
 done
 
 lines=$(mhdr -h MpaneLines "$MBLAZE/profile")
 [ -z "$lines" ] && lines=20
-tmux split-window ${horiz} -l ${lines} "${cmd} ${args}; env CMD=${cmd} FOLDER=${arg0} EDITOR=$EDITOR mloop ${opts}"
+tmux split-window ${horiz} -l ${lines} "env EDITOR=$EDITOR mloop ${opts} ${args}"

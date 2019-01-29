@@ -26,6 +26,7 @@ Things you can set there:
 * MaildirBase: the base directory of your maildir tree
 * InboxName: the relative path of your inbox under Maildir
 * Inbox: full path to your main in-box
+* MdisplayOpts: default options to the mdisplay script
 
 It's probably better to set MaildirBase and InboxName and leave Inbox
 alone but there are situations where you can't.  I generally run all
@@ -34,7 +35,7 @@ folders.
 
 Use at your own risk.  On a POSIX system.  Preferably OpenBSD.  I
 store my maildir tree under ~/mail, and start this mess from inside of
-tmux by running "mpane -n" to see new messages in my in-box.  My
+tmux by running "mloop -n" to see new messages in my in-box.  My
 ~/.mblaze/profile has the following two lines at the end:
 
     MaildirBase: /home/attila/mail

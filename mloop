@@ -1,16 +1,16 @@
 #!/bin/sh
 
-# mloop - a thin command-line interface to a mail folder using mblaze
+# mloop [-n] [folder] - thin CLI to mblaze(7)
 
-# This script goes with mpane, which invokes in a new tmux window.  It
-# reads commands from stdin and allows for simple display and reply of
-# messages in the folder.  It can be configured in ~/.mblaze/profile,
-# see the README.md file.
+# If invoked with -n, we display only new mail in whatever folder
+# we're examining, which by default is your inbox as configured in
+# ~/.mblaze/profile or in the envar INBOX.  See the README.md file for
+# more on configuration
+
+# You can switch between new/all mail using the new/all commands. 
 
 # type "brief" at the prompt for a brief usage summary
 # type "help" for more detailed help.
-
-mdopts="$*"
 
 SCRIPT=$0
 
@@ -24,7 +24,30 @@ inbox=$(mhdr -h Inbox "$MBLAZE/profile")
 editor_cmd=$(mhdr -h Editor "$MBLAZE/profile")
 [ -z "${editor_cmd}" ] && editor_cmd=${EDITOR-${VISUAL-vi}}
 EDITOR=${EDITOR-$editor_cmd}
+mdopts=$(mhdr -h MdisplayOpts "$MBLAZE/profile")
 
+CMD=minbox
+f=
+while [ $# -gt 0 ]; do
+	case $1 in
+		-n) CMD=mnewbox ;;
+		*)
+			if [ -z "${f}" ]; then
+				f=$1
+			else
+				echo usage: $(basename $SCRIPT) [-n] [folder]
+				exit 1
+			fi
+			;;
+	esac
+	shift
+done
+[ -n "$f" ] && FOLDER=$f
+[ -z "${FOLDER}" ] && FOLDER=${INBOX-$inbox_name}
+new=
+[ "${CMD}" = "mnewbox" ] && new='*'
+
+# common back-end to mcom/mfwd/mrep
 tmux_send () {
 	typeset cmd args msgno fullcmd title
 	cmd=$1
@@ -58,6 +81,7 @@ fwd () {
 	tmux_send mfwd $*
 }
 
+# rescan current folder and display the current sequence
 rescan () {
 	typeset nothing afterargs
 	nothing=$1
@@ -75,6 +99,10 @@ rescan () {
 	}
 }
 
+# deal with [msgno] [args...]
+# if our first arg looks like a number, set msgno/tmux-buffer
+# and shift it out.
+# return what is left
 set_args () {
 	typeset the_args
 	the_args="$*"
@@ -89,6 +117,7 @@ set_args () {
 	echo ${the_args}
 }
 
+# search this script for hash-plus comments and display them
 give_help () {
 	case $1 in
 		help)
@@ -112,20 +141,20 @@ usage () {
 	echo "usage: $*"
 }
 
-msgno=
-[ -z "${FOLDER}" ] && FOLDER=${INBOX-$inbox_name}
-new=
-[ "${CMD}" = "mnewbox" ] && new='*'
-echo folder: ${FOLDER}, cmd: ${CMD}, editor: ${EDITOR}
-give_help brief
-while read nothing?"${FOLDER}${new}> " afterargs; do
+# handle one command and optional args
+process_command () {
+	typeset nothing afterargs cmd do_mscan
+	nothing=$1
+	shift
+	afterargs="$*"
 	cmd="mdisplay ${mdopts}"
+	do_mscan=
 	case ${nothing} in
 		reply|fwd|send) #+ reply [msgno] [mcom-opts] - reply to cur/given msg in new window
 			#+ fwd [msgno] [mcom-opts] - forward message
 			#+ send [mcom-opts] - send new message, c.f. mcom(1)
 			${nothing} ${afterargs}
-			continue
+			return
 			;;
 		mime|extract|headers) #+ mime [msgno] - display mime structure of msg
 			#+ extract msgno part - extract given part of msgno
@@ -143,8 +172,9 @@ while read nothing?"${FOLDER}${new}> " afterargs; do
 			afterargs=$(set_args ${afterargs})
 			[ -z "${afterargs}" ] && {
 				usage "${nothing} [msgno] dest-folder"
-				continue
+				return
 			}
+			do_mscan=mscan
 			;;
 		inc) #+ inc [all] - incorporate new mail into cur (mark all read in folder)
 			if [ -z "${afterargs}" ]; then
@@ -159,7 +189,7 @@ while read nothing?"${FOLDER}${new}> " afterargs; do
 			else
 				usage "inc what?"
 			fi
-			continue
+			return
 			;;
 		decrypt) #+ decrypt [msgno] - run mdecrypt on message
 			cmd=mdecrypt
@@ -178,25 +208,25 @@ while read nothing?"${FOLDER}${new}> " afterargs; do
 			#+ clear - re-list current folder
 			#+ inbox - switch to in-box and list
 			rescan ${nothing} ${afterargs}
-			continue
+			return
 			;;
 		all) #+ all - switch from new view to all messages in folder
 			CMD=minbox
 			new=
 			rescan ${nothing} ${afterargs}
-			continue
+			return
 			;;
 		new) #+ new - switch from all messages to only new ones
 			CMD=mnewbox
 			new='*'
 			rescan ${nothing} ${afterargs}
-			continue
+			return
 			;;
 		spam) #+ spam [msgno] - run message through mrespam
 			if [ -n "${afterargs}" ]; then
 				echo mrespam ${afterargs}
 				mrespam ${afterargs}
-				continue
+				return
 			fi
 			cmd=mrespam
 			;;
@@ -204,41 +234,53 @@ while read nothing?"${FOLDER}${new}> " afterargs; do
 			if [ -n "${afterargs}" ]; then
 				echo munspam ${afterargs}
 				munspam ${afterargs}
-				continue
+				return
 			fi
 			cmd=munspam
 			;;
 		grep) #+ grep args... - run magrep args on current folder
 			magrep ${afterargs} | mthread | mscan
-			continue
+			return
 			;;
 		restrict) #+ restrict args - run magrep and set results as current seq
 			magrep ${afterargs} | mthread | mseq -S | mscan
-			continue
+			return
 			;;
 		dirs) #+ dirs - list Maildirs with new mail in them
 			mnewdirs | rs
-			continue
+			return
 			;;
 		help|brief) #+ help - list commands and what they do
 			#+ brief - print a brief usage summary/command list
 			give_help ${nothing} ${afterargs}
-			continue
+			return
 			;;
 		[0-9]*) tmux set-buffer ${nothing} ;;
 
 		[a-z]*)
 			usage "not recognized: ${nothing}"
 			give_help brief
-			continue
+			return
 			;;
 	esac
 	msgno=$(tmux show-buffer)
 	if [ -n "${msgno}" ]; then
 		f=$(mpick ${msgno} 2>/dev/null)
-		[ -n $f ] && {
+		if [ -n $f ]; then
 			echo ${cmd} ${msgno} ${afterargs}
-			${cmd} ${msgno} ${afterargs}
-		}
+			if [ -n "${do_mscan}" ]; then
+				${cmd} ${msgno} ${afterargs} | ${do_mscan}
+			else
+				${cmd} ${msgno} ${afterargs}
+			fi
+		fi
 	fi
+}
+
+msgno=
+${CMD} ${FOLDER}
+echo folder: ${FOLDER}, cmd: ${CMD}, editor: ${EDITOR}
+give_help brief
+while read nothing?"${FOLDER}${new}> " afterargs; do
+	[ -n "${nothing}" ] && process_command ${nothing} ${afterargs}
 done
