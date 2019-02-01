@@ -1,11 +1,13 @@
 #!/bin/sh
 
-# mloop [-n] [folder] - thin CLI to mblaze(7)
+# mloop [-nq1] [folder [command...]] - thin CLI to mblaze(7)
 
 # If invoked with -n, we display only new mail in whatever folder
 # we're examining, which by default is your inbox as configured in
 # ~/.mblaze/profile or in the envar INBOX.  See the README.md file for
 # more on configuration
+# If invoked with -q, we skip listing the folder and printing a usage
+# summary at start (quiet start)
 
 # You can switch between new/all mail using the new/all commands. 
 
@@ -27,21 +29,30 @@ EDITOR=${EDITOR-$editor_cmd}
 mdopts=$(mhdr -h MdisplayOpts "$MBLAZE/profile")
 
 CMD=minbox
+quiet_start=$(mhdr -h MloopQuiet "$MBLAZE/profile")
+[ -z "${quiet_start}" ] && quiet_start=0
 f=
-while [ $# -gt 0 ]; do
-	case $1 in
-		-n) CMD=mnewbox ;;
-		*)
-			if [ -z "${f}" ]; then
-				f=$1
-			else
-				echo usage: $(basename $SCRIPT) [-n] [folder]
-				exit 1
-			fi
-			;;
+only_one=0
+args=$(getopt nq1 $*)
+if [ $? -ne 0 ]; then
+	echo usage: $(basename $SCRIPT) [-nq1] [folder [cmd...]]
+	exit 1
+fi
+set -- $args
+while [ $# -ne 0 ]; do
+	case "$1" in
+		-1) only_one=1; shift ;;
+		-n) CMD=mnewbox; shift; ;;
+		-q) quiet_start=1; shift; ;;
+		--) shift; break ;;
 	esac
-	shift
 done
+if [ $# -gt 0 ]; then
+	f=$1
+	shift
+	[ $f = "-" ] && f=""
+fi
+
 [ -n "$f" ] && FOLDER=$f
 [ -z "${FOLDER}" ] && FOLDER=${INBOX-$inbox_name}
 new=
@@ -121,10 +132,12 @@ set_args () {
 give_help () {
 	case $1 in
 		help)
+			# if they give us a specific command find help for it
+			# otherwise, dump all the help
 			if [ -z "$2" ]; then
-				grep '#\+' $SCRIPT | sed -e 's/^.*#\+ //'
+				grep '#\+' $SCRIPT | sed -e 's/^.*#\+ //' | sort
 			else
-				grep "#\+ $2" $SCRIPT | sed -e 's/^.*#\+ //'
+				grep "#\+ $2" $SCRIPT | sed -e 's/^.*#\+ //' | sort
 			fi
 			;;
 		brief)
@@ -143,10 +156,11 @@ usage () {
 
 # handle one command and optional args
 process_command () {
-	typeset nothing afterargs cmd do_mscan
+	typeset nothing afterargs beforeargs cmd do_mscan
 	nothing=$1
 	shift
 	afterargs="$*"
+	beforeargs=
 	cmd="mdisplay ${mdopts}"
 	do_mscan=
 	case ${nothing} in
@@ -164,7 +178,8 @@ process_command () {
 				extract) cmd="mshow -x" ;;
 				headers) cmd="mshow -q" ;;
 			esac
-			afterargs=$(set_args ${afterargs})
+			beforeargs=$(set_args ${afterargs})
+			afterargs=""
 			;;
 		mv|cp)	#+ mv [msgno] dest-folder - move msg to given folder
 			#+ cp [msgno] dest-folder - copy msg to given folder
@@ -267,20 +282,26 @@ process_command () {
 	if [ -n "${msgno}" ]; then
 		f=$(mpick ${msgno} 2>/dev/null)
 		if [ -n $f ]; then
-			echo ${cmd} ${msgno} ${afterargs}
+			echo ${cmd} ${beforeargs} ${msgno} ${afterargs}
 			if [ -n "${do_mscan}" ]; then
-				${cmd} ${msgno} ${afterargs} | ${do_mscan}
+				${cmd} ${beforeargs} ${msgno} ${afterargs} | ${do_mscan}
 			else
-				${cmd} ${msgno} ${afterargs}
+				${cmd} ${beforeargs} ${msgno} ${afterargs}
 			fi
 		fi
 	fi
 }
 
 msgno=
-${CMD} ${FOLDER}
-echo folder: ${FOLDER}, cmd: ${CMD}, editor: ${EDITOR}
-give_help brief
+if [ $quiet_start -eq 0 ]; then
+	${CMD} ${FOLDER}
+	echo folder: ${FOLDER}, cmd: ${CMD}, editor: ${EDITOR}
+	give_help brief
+fi
+if [ $# -gt 0 ]; then
+	process_command $*
+	[ $only_one -ne 0 ] && exit 0
+fi
 while read nothing?"${FOLDER}${new}> " afterargs; do
 	[ -n "${nothing}" ] && process_command ${nothing} ${afterargs}
 done
