@@ -3,30 +3,36 @@
 I make no advertisements for these scripts except: they are generally
 short and do one thing.  Well...
 
-They enable my workflow on top of mblaze(7), which is pretty minimal.
-I use them every day.  I use tmux(1) as my UI "toolkit", since it is
-easy to integrate with on the command line.  Several scripts do things
-with tmux, either creating windows/panes or reading/setting the main
-cutbuffer, where certain commands there is a msg# in the current
-sequence.  This means you can select a msg# with the mouse in tmux and
-operate on it; not quite point-and-click but close enough for me.
+They enable my email workflow on top of mblaze(7).  I use tmux(1) as
+my UI "toolkit", since it is easy to integrate with on the command
+line and enables a lot of useful interactions while hiding a lot of
+details, like mouse support.  Several scripts do things with tmux,
+either creating windows/panes or reading/setting the main cutbuffer,
+where certain it is assumed there is a msg# in the current sequence.
+This means you can select a msg# with the mouse in tmux and operate on
+it; not quite point-and-click but close enough for me.
 
 You should read mblaze(7) and the rest of the mblaze man pages if you
 want to understand what is going on here; also, reading
 [tmux(1)](https://man.openbsd.org/tmux) is not a terrible idea.
 
-I pile on with mblaze and store any config information in
-~/.mblaze/profile in the form of text that looks like email headers;
+I pile on with mblaze and store configuration information in
+`~/.mblaze/profile` in the form of text that looks like email headers;
 this makes it easy to query the configuration with mblaze's mhdr(1)
 utility.
 
 Things you can set there:
 
-* MpaneLines: size in lines of pane mpane creates for mloop
-* MaildirBase: the base directory of your maildir tree
-* InboxName: the relative path of your inbox under Maildir
+* CryptFileCmd: command to store plaintext of an encrypted msg
+* CryptTmp: temp dir to use in mdecrypt, preferably in a cryptofs
+* Editor: editor command, overridden by $EDITOR envar if set
+* EncryptCmd: command to encrypt a message (def: gpg)
 * Inbox: full path to your main in-box
+* InboxName: the relative path of your inbox under Maildir
+* MaildirBase: the base directory of your maildir tree
 * MdisplayOpts: default options to the mdisplay script
+* MloopQuiet: if set mloop behaves as if -q was specified by default
+* MpaneLines: size in lines of pane mpane creates for mloop
 
 It's probably better to set MaildirBase and InboxName and leave Inbox
 alone but there are situations where you can't.  I generally run all
@@ -36,7 +42,7 @@ folders.
 Use at your own risk.  On a POSIX system.  Preferably OpenBSD.  I
 store my maildir tree under ~/mail, and start this mess from inside of
 tmux by running "mloop -n" to see new messages in my in-box.  My
-~/.mblaze/profile has the following two lines at the end:
+`~/.mblaze/profile` has the following two lines at the end:
 
     MaildirBase: /home/attila/mail
     InboxName: INBOX

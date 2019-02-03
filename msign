@@ -3,6 +3,12 @@
 # msign $msg
 # mencrypt $msg
 
+# produce signed/encrypted message on stdout
+
+MBLAZE=${MBLAZE-$HOME/.mblaze}
+cmd=$(mhdr -h EncryptCmd "$MBLAZE/profile")
+[ -z "${cmd}" ] && cmd=${MENCRYPT_CMD-gpg}
+
 [ $# -eq 0 ] && {
 	echo usage: $(basename $0) msgfile
 	exit 1
@@ -10,18 +16,17 @@
 
 f=$1
 tmp=$(dirname $(dirname $f))/tmp/$(basename $f)
-cat $f | perl -lpe 'if ($_ =~ /^--text follows this line--$/) { print "\n" }' > $tmp
+cat $f | \
+  perl -lpe 'if ($_ =~ /^--text follows this line--$/) { print "\n" }' > $tmp
 mv $tmp $f
 
-cmd=${MENCRYPT_CMD-gpg}
 opts=
-
 case "$0" in
 	*msign*)
-		opts="--clearsign -s -a"
+		opts="-s --clearsign -a"
 		;;
 	*mencrypt*)
-		opts="-e --clearsign -s -a"
+		opts="-e -s -a"
 		for recip in $(mhdr -h to:cc:bcc ${f}); do
 			opts="${opts} -r '${recip}'"
 		done
@@ -32,5 +37,17 @@ case "$0" in
 		;;
 esac
 
-echo ${cmd} ${opts} ${f}
-${cmd} ${opts} ${f}
+head_tmp=${f}.htmp
+mshow -q -H $f > ${head_tmp}
+echo '' >> ${head_tmp}
+hdr_lines=$(cat ${head_tmp} | wc -l)
+body_tmp=${f}.btmp
+mshow -r -H $f | sed -e "1,${hdr_lines}d" > ${body_tmp}
+echo ${cmd} ${opts} ${f}.btmp >2
+${cmd} ${opts} ${f}.btmp || {
+	echo ${cmd} ${opts} failed >2
+	exit 1
+}
+cat ${head_tmp} ${f}.btmp.asc
+rm -f ${f}.btmp.asc ${f}.[hb]tmp
+exit 0

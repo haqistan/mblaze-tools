@@ -11,11 +11,16 @@
 
 # You can switch between new/all mail using the new/all commands. 
 
+# The help system is based on hash-plus comments in this script,
+# c.f the give_help function, below.
+#
 # type "brief" at the prompt for a brief usage summary
-# type "help" for more detailed help.
+# type "help" for command summaries on each command
+# type "help <cmd>" for more detailed help on <cmd>
 
 SCRIPT=$0
 
+# query config
 MBLAZE=${MBLAZE-$HOME/.mblaze}
 basedir=$(mhdr -h MaildirBase "$MBLAZE/profile")
 basedir=${basedir-$HOME/Maildir}
@@ -28,6 +33,7 @@ editor_cmd=$(mhdr -h Editor "$MBLAZE/profile")
 EDITOR=${EDITOR-$editor_cmd}
 mdopts=$(mhdr -h MdisplayOpts "$MBLAZE/profile")
 
+# parse command-line args
 CMD=minbox
 quiet_start=$(mhdr -h MloopQuiet "$MBLAZE/profile")
 [ -z "${quiet_start}" ] && quiet_start=0
@@ -52,7 +58,7 @@ if [ $# -gt 0 ]; then
 	shift
 	[ $f = "-" ] && f=""
 fi
-
+# set FOLDER and CMD
 [ -n "$f" ] && FOLDER=$f
 [ -z "${FOLDER}" ] && FOLDER=${INBOX-$inbox_name}
 new=
@@ -128,23 +134,61 @@ set_args () {
 	echo ${the_args}
 }
 
-# search this script for hash-plus comments and display them
+# like set_args but for the extract/mime/show cases msgno can be
+# implicit, if first arg is numeric but within the range
+# 1..$number_attachments of cur message, don't treat it as a msg#,
+# treat it as attachment#
+special_args () {
+	typeset the_args cur natt
+	cur=$(tmux show-buffer)
+	the_args="$*"
+	case $1 in
+		[0-9]*)
+			if [ -n "${cur}" ]; then
+				natt=$(mshow -t ${cur} |tail -1 | \
+					       awk -F: '{print $1}')
+				if [ $1 -gt $natt ]; then
+					tmux set-buffer $1
+					shift
+					the_args="$*"
+				fi
+				# else it is an attachment#, leave args alone
+			else
+				tmux set-buffer $1
+				shift
+				the_args="$*"
+			fi
+			;;
+	esac
+	echo ${the_args}
+}
+
+# search this script for hash-plus comments and display them in various ways
 give_help () {
+	typeset cmds cmd
+	# get the list of commands for starters, alpha-sorted
+	cmds=$(grep '#\+' $SCRIPT | \
+		       sed -e 's/^.*#\+ //' | awk '{ print $1 }' | sort -u)
 	case $1 in
 		help)
 			# if they give us a specific command find help for it
-			# otherwise, dump all the help
+			# otherwise, dump all the help summaries (first lines)
 			if [ -z "$2" ]; then
-				grep '#\+' $SCRIPT | sed -e 's/^.*#\+ //' | sort
+				for cmd in ${cmds}; do
+					grep "#\+ $cmd " $SCRIPT | head -1 | \
+						sed -e 's/^.*#\+ //'
+				done
 			else
-				grep "#\+ $2" $SCRIPT | sed -e 's/^.*#\+ //' | sort
+				# print all the help for a specific command
+				grep "#\+ $2 " $SCRIPT | \
+					sed -e 's/^.*#\+ //' | head -1
+				grep "#\+ $2 " $SCRIPT | \
+					sed -e 1d -e "s/^.*#\+ $2 /    /" | fmt
 			fi
 			;;
 		brief)
-			typeset cmds
-			cmds="$(grep '#\+' $SCRIPT | sed -e 's/^.*#\+ //' | awk '{ print $1 }' | sort)"
 			echo "one of:"
-			echo $cmds | rs
+			echo ${cmds} | rs
 			echo "or: type msg# / select msg# w/mouse in tmux and hit RETURN to see it in new pane"
 			;;
 	esac
@@ -171,15 +215,17 @@ process_command () {
 			return
 			;;
 		mime|extract|headers) #+ mime [msgno] - display mime structure of msg
-			#+ extract msgno part - extract given part of msgno
+			#+ extract [msgno] part# - extract given part of msgno
+			#+ extract if no msgno is given and part# is a valid
+			#+ extract attachment# for the current message, a
+			#+ extract single numeric arg is taken to be att#
 			#+ headers [msgno] - dump headers of msg to stdout
 			case ${nothing} in
 				mime) cmd="mshow -t" ;;
 				extract) cmd="mshow -x" ;;
 				headers) cmd="mshow -q" ;;
 			esac
-			beforeargs=$(set_args ${afterargs})
-			afterargs=""
+			afterargs=$(special_args ${afterargs})
 			;;
 		mv|cp)	#+ mv [msgno] dest-folder - move msg to given folder
 			#+ cp [msgno] dest-folder - copy msg to given folder
@@ -191,14 +237,28 @@ process_command () {
 			}
 			do_mscan=mscan
 			;;
-		inc) #+ inc [all] - incorporate new mail into cur (mark all read in folder)
-			if [ -z "${afterargs}" ]; then
+		inc) #+ inc [all|new] - incorporate new mail into cur (mark all read in folder)
+			#+ inc We use the minc(1) program from mblaze(7) to
+			#+ inc incorporate new mail in the current folder,
+			#+ inc which many MUAs call mark-all-as-read.
+			#+ inc If we were in "new" mode (c.f. the new/all
+			#+ inc commands) then we normall switch to "all"
+			#+ inc mode after running minc.  If our optional
+			#+ inc argument is "new", then we stay in "new" mode
+			#+ inc instead.  If our optional argument is "all"
+			#+ inc then instead of minc, we run the mincall
+			#+ inc script to incorporate all new mail in all
+			#+ inc folders.
+			if [ -z "${afterargs}" -o "${afterargs}" = new ]; then
 				echo minc ${FOLDER}
 				minc ${basedir}/${FOLDER} | mscan
-				[ -n "${new}" ] && {
+				if [ -n "${new}" -a -z "${afterargs}" ]; then
 					new=
 					CMD=minbox
-				}
+				elif [ "${afterargs}" = new ]; then
+					new='*'
+					CMD=mnewbox
+				fi
 			elif [ "${afterargs}" = all ]; then
 				mincall
 			else
@@ -217,7 +277,8 @@ process_command () {
 		quit|exit) #+ quit - exit program
 			exit 0
 			;;
-		list|open|cd|clear|inbox) #+ list - (re)list current folder
+		list|ls|open|cd|clear|inbox) #+ list - (re)list current folder
+			#+ ls - (re)list current folder
 			#+ open folder - switch to different folder
 			#+ cd folder - switch to different folder
 			#+ clear - re-list current folder
@@ -284,7 +345,8 @@ process_command () {
 		if [ -n $f ]; then
 			echo ${cmd} ${beforeargs} ${msgno} ${afterargs}
 			if [ -n "${do_mscan}" ]; then
-				${cmd} ${beforeargs} ${msgno} ${afterargs} | ${do_mscan}
+				${cmd} ${beforeargs} ${msgno} ${afterargs} | \
+					${do_mscan}
 			else
 				${cmd} ${beforeargs} ${msgno} ${afterargs}
 			fi
