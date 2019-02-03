@@ -4,13 +4,17 @@ I make no advertisements for these scripts except: they are generally
 short and do one thing.  Well...
 
 They enable my email workflow on top of mblaze(7).  I use tmux(1) as
-my UI "toolkit", since it is easy to integrate with on the command
-line and enables a lot of useful interactions while hiding a lot of
+my UI toolkit, since it is easy to integrate with on the command line
+and enables a lot of useful interactions while hiding a lot of
 details, like mouse support.  Several scripts do things with tmux,
 either creating windows/panes or reading/setting the main cutbuffer,
 where certain it is assumed there is a msg# in the current sequence.
 This means you can select a msg# with the mouse in tmux and operate on
-it; not quite point-and-click but close enough for me.
+it; not quite point-and-click but close enough for me.  It also means
+that it's probably best to run mloop and friends in their own
+dedicated tmux session, which makes them look kinda like a real MUA if
+you squint.  I personally prefer typing commands to navigating menus,
+YMMV.
 
 You should read mblaze(7) and the rest of the mblaze man pages if you
 want to understand what is going on here; also, reading
