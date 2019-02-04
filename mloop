@@ -83,7 +83,7 @@ tmux_send () {
 			fullcmd="${cmd} ${args} -- ${msgno}"
 			;;
 	esac
-	tmux new-window -n "[$title]" "echo ${fullcmd}; env EDITOR=$EDITOR ${fullcmd}; wait_for_me"
+	tmux new-window -n "[$title]" "echo ${fullcmd}; env EDITOR=$EDITOR ${fullcmd}; echo '[PRESS RETURN TO CLOSE]'; read"
 }
 
 reply () {
@@ -274,7 +274,7 @@ process_command () {
 			cmd=mshow
 			afterargs=$(set_args ${afterargs})
 			;;
-		quit|exit) #+ quit - exit program
+		quit) #+ quit - exit program
 			exit 0
 			;;
 		list|ls|open|cd|clear|inbox) #+ list - (re)list current folder
