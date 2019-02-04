@@ -5,9 +5,9 @@ short and do one thing.  Well...
 
 They enable my email workflow on top of mblaze(7).  I use
 [tmux(1)](https://man.openbsd.org/tmux) as my UI toolkit, since it is
-easy to integrate with on the command line and enables a lot of useful
-interactions while hiding a lot of details (e.g. mouse support).
-Several scripts do things with tmux, either creating windows/panes or
+easy to integrate with on the command line and enables useful
+interactions while hiding messy details (e.g. mouse support).  Several
+scripts do things with tmux, either creating windows/panes or
 reading/setting the main cutbuffer, where it is assumed there is a
 msg# in the current sequence.  This means you can select a msg# with
 the mouse in tmux and operate on it; not quite point-and-click but
