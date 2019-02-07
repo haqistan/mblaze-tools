@@ -19,9 +19,10 @@ support for the read command in OpenBSD's
 [ksh(1)](https://man.openbsd.org/ksh) and I'm fine with that, but of
 course YMMV.
 
-These scripts also assume they are installed on a POSIX system and
-that the standard POSIX utilities are available, including
-[rs(1)](https://man.openbsd.org/rs), [fmt(1)](https://man.openbsd.org/fmt),
+These scripts assume they are installed on a BSD system, or at least
+one where the normal BSD utilities are available, including
+[rs(1)](https://man.openbsd.org/rs),
+[fmt(1)](https://man.openbsd.org/fmt),
 [awk(1)](https://man.openbsd.org/awk), etc.  If you try this somewhere
 other than OpenBSD you'll also have to make sure Perl is installed.
 
