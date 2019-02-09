@@ -14,22 +14,36 @@ cmd=$(mhdr -h EncryptCmd "$MBLAZE/profile")
 	exit 1
 }
 
+warn () {
+	echo "$*" 1>&2
+}
+
 f=$1
 tmp=$(dirname $(dirname $f))/tmp/$(basename $f)
 cat $f | \
   perl -lpe 'if ($_ =~ /^--text follows this line--$/) { print "\n" }' > $tmp
 mv $tmp $f
 
+recipients () {
+	typeset f recips
+	f=$1
+	shift
+	recips=""
+	recips=$(mhdr -h to:cc:bcc $f | while read recip; do
+		echo " -r '${recip}'"
+	done)
+	echo ${recips}
+}
+
 opts=
+dash_r=$(recipients $f)
+#warn "dash_r=${dash_r}"
 case "$0" in
 	*msign*)
-		opts="-s --clearsign -a"
+		opts="--sign --clearsign --armor"
 		;;
 	*mencrypt*)
-		opts="-e -s -a"
-		for recip in $(mhdr -h to:cc:bcc ${f}); do
-			opts="${opts} -r '${recip}'"
-		done
+		opts="--encrypt --armor"
 		;;
 	*)
 		echo $0: 'what?'
@@ -43,9 +57,11 @@ echo '' >> ${head_tmp}
 hdr_lines=$(cat ${head_tmp} | wc -l)
 body_tmp=${f}.btmp
 mshow -r -H $f | sed -e "1,${hdr_lines}d" > ${body_tmp}
-echo ${cmd} ${opts} ${f}.btmp >2
-${cmd} ${opts} ${f}.btmp || {
-	echo ${cmd} ${opts} failed >2
+mshow -q $f 1>&2
+warn "=============================="
+warn "${cmd} ${opts} ${dash_r} ${f}.btmp"
+eval "${cmd} ${opts} ${dash_r} ${f}.btmp" || {
+	warn "${cmd} ${opts} failed"
 	exit 1
 }
 cat ${head_tmp} ${f}.btmp.asc
