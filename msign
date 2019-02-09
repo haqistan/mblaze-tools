@@ -3,7 +3,8 @@
 # msign $msg
 # mencrypt $msg
 
-# produce signed/encrypted message on stdout
+# Produce signed/encrypted message on stdout
+# Meant to be invoked from mcom(1), a part of mblaze
 
 MBLAZE=${MBLAZE-$HOME/.mblaze}
 cmd=$(mhdr -h EncryptCmd "$MBLAZE/profile")

@@ -1,6 +1,13 @@
 #!/bin/sh
+
+# mnewbox - list only new mail in maildir
+
+MBLAZE=${MBLAZE-$HOME/.mblaze}
+inbox_name=$(mhdr -h InboxName "$MBLAZE/profile")
+[ -z "${inbox_name}" ] && inbox_name=INBOX
+
 if [ $# -eq 0 ]; then
-	box=INBOX
+	box=$inbox_name
 else
 	box="$1"
 	shift

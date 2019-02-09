@@ -1,5 +1,13 @@
 #!/bin/sh
 
+# mcp [msg#...] dst-maildir
+# mmv [msg#...] dst-maildir
+
+# If dst-maildir doesn't end in /new and adding /new makes it a
+# directory we append /new
+
+# We look in ~/.mblaze/profile for MaildirBase
+
 MBLAZE=${MBLAZE-$HOME/.mblaze}
 basedir=$(mhdr -h MaildirBase "$MBLAZE/profile")
 basedir=${basedir-$HOME/Maildir}
