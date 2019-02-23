@@ -3,7 +3,7 @@
 # mcp [msg#...] dst-maildir
 # mmv [msg#...] dst-maildir
 
-# If dst-maildir doesn't end in /new and adding /new makes it a
+# If dst-maildir doesn't end in /new and adding /new makes it a valid
 # directory we append /new
 
 # We look in ~/.mblaze/profile for MaildirBase

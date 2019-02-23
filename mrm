@@ -1,4 +1,36 @@
 #!/bin/sh
-while read filename; do
-      [ -f ${filename} ] && echo rm ${filename}
+
+# mrm [-n] msgno [msgno...]
+
+# remove messages
+
+case $(uname) in
+	OpenBSD)
+		def_rmcmd="rm -P" # secure delete by default under OpenBSD
+		;;
+	*)
+		def_rmcmd="rm"
+		;;
+esac
+
+MBLAZE=${MBLAZE-$HOME/.mblaze}
+rmcmd=$(mhdr -h RemoveCmd "$MBLAZE/profile")
+[ -z "${rmcmd}" ] && rmcmd="${def_rmcmd}"
+
+while [ $# -ne 0 ]; do
+	case "$1" in
+		-n) 
+			rmcmd="echo ${rmcmd}"
+			shift
+			;;
+		*)
+			break
+			;;
+	esac
+done
+
+for picker in $*; do
+	mpick ${picker} | while read filename; do
+		${rmcmd} ${filename}
+	done
 done

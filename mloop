@@ -8,12 +8,16 @@
 # more on configuration
 # If invoked with -q, we skip listing the folder and printing a usage
 # summary at start (quiet start)
+# Any additional arguments beyond the folder are interpreted as a
+# command and executed immediately upon startup.  If the -1 option is
+# given, then we do not drop into the main loop and instead only
+# execute whatever command was given as arguments and exit.
 
 # You can switch between new/all mail using the new/all commands. 
 
-# The help system is based on hash-plus comments in this script,
-# c.f the give_help function, below.
-#
+# The help system is based on hash-plus comments in this script, c.f
+# the give_help function, below.
+
 # type "brief" at the prompt for a brief usage summary
 # type "help" for command summaries on each command
 # type "help <cmd>" for more detailed help on <cmd>
@@ -48,8 +52,8 @@ set -- $args
 while [ $# -ne 0 ]; do
 	case "$1" in
 		-1) only_one=1; shift ;;
-		-n) CMD=mnewbox; shift; ;;
-		-q) quiet_start=1; shift; ;;
+		-n) CMD=mnewbox; shift ;;
+		-q) quiet_start=1; shift ;;
 		--) shift; break ;;
 	esac
 done
@@ -189,7 +193,7 @@ give_help () {
 		brief)
 			echo "one of:"
 			echo ${cmds} | rs
-			echo "or: type msg# / select msg# w/mouse in tmux and hit RETURN to see it in new pane"
+			echo "or: type msg# / sel msg# w/mouse in tmux and hit RET or . to see in new pane"
 			;;
 	esac
 }
@@ -208,7 +212,7 @@ process_command () {
 	cmd="mdisplay ${mdopts}"
 	do_mscan=
 	case ${nothing} in
-		reply|fwd|send) #+ reply [msgno] [mcom-opts] - reply to cur/given msg in new window
+		reply|fwd|send) #+ reply [msgno] [mcom-opts] - reply to cur/given msg in new (tmux) window
 			#+ fwd [msgno] [mcom-opts] - forward message
 			#+ send [mcom-opts] - send new message, c.f. mcom(1)
 			${nothing} ${afterargs}
@@ -227,8 +231,18 @@ process_command () {
 			esac
 			afterargs=$(special_args ${afterargs})
 			;;
-		mv|cp)	#+ mv [msgno] dest-folder - move msg to given folder
-			#+ cp [msgno] dest-folder - copy msg to given folder
+		mv|cp)	#+ mv [msgno...] dest-folder - move msg to given folder
+			#+ mv if no messages are given the current msg is
+			#+ mv assumed.  dest-folder can be a path relative to
+			#+ mv your MaildirBase config setting.
+			#+ mv If dest-folder does not end in /new or /cur it
+			#+ mv is assumed you meant /new.
+			#+ cp [msgno...] dest-folder - copy msg to given folder
+			#+ cp if no messages are given the current msg is
+			#+ cp assumed.  dest-folder can be a path relative to
+			#+ cp your MaildirBase config setting.
+			#+ cp If dest-folder does not end in /new or /cur it
+			#+ cp is assumed you meant /new.
 			cmd=m${nothing}
 			afterargs=$(set_args ${afterargs})
 			[ -z "${afterargs}" ] && {
@@ -236,6 +250,17 @@ process_command () {
 				return
 			}
 			do_mscan=mscan
+			;;
+		rm) #+ rm msgno [msgno...] - remove indicated messages
+			#+ rm we refuse to simply operate on the current
+			#+ rm message so you can't so easily delete it
+			if [ -z "${afterargs}" ]; then
+				give_help help rm
+			else
+				echo mrm ${afterargs}
+				mrm ${afterargs}
+			fi
+			return
 			;;
 		inc) #+ inc [all|new] - incorporate new mail into cur (mark all read in folder)
 			#+ inc We use the minc(1) program from mblaze(7) to
@@ -332,6 +357,8 @@ process_command () {
 			return
 			;;
 		[0-9]*) tmux set-buffer ${nothing} ;;
+
+		.) ;; #+ . - a single dot displays the current message
 
 		[a-z]*)
 			usage "not recognized: ${nothing}"

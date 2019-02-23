@@ -2,6 +2,10 @@
 
 # usage: mdecrypt msgno msgno:msgno ...
 
+# We temporarily store the passphrase in a file, which we assume is in
+# an encrypted filesystem.  YMMV.  We should probably change this to
+# use file descriptors instead.
+
 MBLAZE=${MBLAZE-$HOME/.mblaze}
 crypt_tmp=$(mhdr -h CryptTmp "$MBLAZE/profile")
 [ -z "${crypt_tmp}" ] && crypt_tmp=$HOME/mine/tmp
@@ -26,8 +30,8 @@ read_passphrase () {
 
 passphrase=""
 
-# scan the input files for to/cc addresses and display them.  we do
-# this so the user knows what passphrase is appropriate
+# scan the input files for to/cc/bcc addresses and display them.  we
+# do this so the user knows what passphrase is appropriate
 for picker in $*; do
 	mpick ${picker} | while read filename; do
 		mhdr -M -h to:cc:bcc ${filename}
@@ -43,9 +47,10 @@ read_passphrase
 # with that passphrase.
 for picker in $*; do
 	mpick ${picker} | while read filename; do
-		# pass the Date header around gpg's back since it won't preserve it
+		# pass the Date header around gpg's back since it
+		# won't preserve it
 		(echo -n 'Date: '; mhdr -h Date ${filename}; \
-		 mshow -r ${filename} | gpg --passphrase-file=${passphrase}) | \
+		 mshow -r ${filename} | gpg --passphrase-file=${passphrase}) |\
 			${crypt_file_cmd}
 	done
 done
