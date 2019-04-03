@@ -27,7 +27,7 @@ SCRIPT=$0
 # query config
 MBLAZE=${MBLAZE-$HOME/.mblaze}
 basedir=$(mhdr -h MaildirBase "$MBLAZE/profile")
-basedir=${basedir-$HOME/Maildir}
+basedir=${basedir-$HOME/mail}
 inbox_name=$(mhdr -h InboxName "$MBLAZE/profile")
 [ -z "${inbox_name}" ] && inbox_name=INBOX
 inbox=$(mhdr -h Inbox "$MBLAZE/profile")
@@ -36,8 +36,14 @@ editor_cmd=$(mhdr -h Editor "$MBLAZE/profile")
 [ -z "${editor_cmd}" ] && editor_cmd=${EDITOR-${VISUAL-vi}}
 EDITOR=${EDITOR-$editor_cmd}
 mdopts=$(mhdr -h MdisplayOpts "$MBLAZE/profile")
+synchost=$(mhdr -h SyncHost "$MBLAZE/profile")
+synccmd=$(mhdr -h SyncCmd "$MBLAZE/profile")
+[ -z "${synccmd}" ] && synccmd="rsync -azv"
+syncrmt=$(mhdr -h SyncRemoteDir "$MBLAZE/profile")
+[ -z "${syncrmt}" ] && syncrmt=$HOME
 
 # parse command-line args
+
 CMD=minbox
 quiet_start=$(mhdr -h MloopQuiet "$MBLAZE/profile")
 [ -z "${quiet_start}" ] && quiet_start=0
@@ -204,7 +210,7 @@ usage () {
 
 # handle one command and optional args
 process_command () {
-	typeset nothing afterargs beforeargs cmd do_mscan
+	typeset nothing afterargs beforeargs cmd do_mscan tohost
 	nothing=$1
 	shift
 	afterargs="$*"
@@ -223,13 +229,25 @@ process_command () {
 			#+ extract if no msgno is given and part# is a valid
 			#+ extract attachment# for the current message, a
 			#+ extract single numeric arg is taken to be att#
-			#+ headers [msgno] - dump headers of msg to stdout
+			#+ headers [opts] [msgno] - dump headers of msg to stdout
+			#+ headers other options to mshow(1) can precede the
+			#+ headers optional msgno, so >headers -H   will show
+			#+ headers all raw headers of the current message
 			case ${nothing} in
-				mime) cmd="mshow -t" ;;
-				extract) cmd="mshow -x" ;;
-				headers) cmd="mshow -q" ;;
+				mime)
+					cmd="mshow -t"
+					afterargs=$(special_args ${afterargs})
+					;;
+				extract)
+					cmd="mshow -x"
+					afterargs=$(special_args ${afterargs})
+					;;
+				headers)
+					cmd="mshow -q"
+					beforeargs=$(special_args ${afterargs})
+					afterargs=""
+					;;
 			esac
-			afterargs=$(special_args ${afterargs})
 			;;
 		mv|cp)	#+ mv [msgno...] dest-folder - move msg to given folder
 			#+ mv if no messages are given the current msg is
@@ -349,6 +367,16 @@ process_command () {
 			;;
 		dirs) #+ dirs - list Maildirs with new mail in them
 			mnewdirs | rs
+			return
+			;;
+		sync)	#+ sync [host] - sync maildir to another host
+			#+ sync sync mail tree to another host; if no
+			#+ sync host is given, the default from your
+			#+ sync SyncHost preference is used.
+			tohost="${afterargs}"
+			[ -z "${tohost}" ] && tohost=${synchost}
+			echo ${synccmd} ${basedir} ${tohost}:${syncrmt}
+			${synccmd} ${basedir} ${tohost}:${syncrmt}
 			return
 			;;
 		help|brief) #+ help - list commands and what they do
