@@ -1,4 +1,4 @@
-#!/bin/sh
+s#!/bin/sh
 
 # mloop [-nq1] [folder [command...]] - thin REPL for mblaze(7)
 
@@ -384,6 +384,8 @@ process_command () {
 			#+ search also can be combined e.g. tc:to+from bs:body+subj
 			#+ search a:addr is short for tcf:addr (to/cc/from)
 			${mairix} -H ${afterargs}
+			CMD=minbox
+			new=''
 			rescan cd search
 			return
 			;;
