@@ -443,6 +443,7 @@ process_command () {
 spew_status () {
 	echo ''
 	mlist -i ${basedir}/${FOLDER}
+	rm -f $MBLAZE/seq-
 }
 
 msgno=
