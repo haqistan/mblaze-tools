@@ -1,17 +1,16 @@
 #!/bin/sh
 
-# mloop [-nq1] [folder [command...]] - thin CLI to mblaze(7)
+# mloop [-nq1] [folder [command...]] - thin REPL for mblaze(7)
 
 # If invoked with -n, we display only new mail in whatever folder
 # we're examining, which by default is your inbox as configured in
 # ~/.mblaze/profile or in the envar INBOX.  See the README.md file for
-# more on configuration
-# If invoked with -q, we skip listing the folder and printing a usage
-# summary at start (quiet start)
-# Any additional arguments beyond the folder are interpreted as a
-# command and executed immediately upon startup.  If the -1 option is
-# given, then we do not drop into the main loop and instead only
-# execute whatever command was given as arguments and exit.
+# more on configuration.  If invoked with -q, we skip listing the
+# folder and printing a usage summary at start (quiet start).  Any
+# additional arguments beyond the folder are interpreted as a command
+# and executed immediately upon startup.  If the -1 option is given,
+# then we do not drop into the main loop and instead only execute
+# whatever command was given as arguments and exit.
 
 # You can switch between new/all mail using the new/all commands. 
 
@@ -22,9 +21,18 @@
 # type "help" for command summaries on each command
 # type "help <cmd>" for more detailed help on <cmd>
 
+# I use this script on OpenBSD, where /bin/{k,}sh's read built-in does
+# not support line editing, and I'm fine with it.  YMMV.
+
 SCRIPT=$0
 
-# query config
+# query environment
+case $(uname) in
+	*BSD)	siginfo="INFO"	;;
+	*)	siginfo=""	;;
+esac
+
+# query config in ~/.mblaze/profile
 MBLAZE=${MBLAZE-$HOME/.mblaze}
 basedir=$(mhdr -h MaildirBase "$MBLAZE/profile")
 basedir=${basedir-$HOME/mail}
@@ -41,9 +49,11 @@ synccmd=$(mhdr -h SyncCmd "$MBLAZE/profile")
 [ -z "${synccmd}" ] && synccmd="rsync -azv"
 syncrmt=$(mhdr -h SyncRemoteDir "$MBLAZE/profile")
 [ -z "${syncrmt}" ] && syncrmt=$HOME
+mairix=$(mhdr -h MairixCmd "$MBLAZE/profile")
+[ -z "${mairix}" ] && mairix=mairix
+index_opts=$(mhdr -h MairixIndexOpts "$MBLAZE/profile")
 
 # parse command-line args
-
 CMD=minbox
 quiet_start=$(mhdr -h MloopQuiet "$MBLAZE/profile")
 [ -z "${quiet_start}" ] && quiet_start=0
@@ -82,7 +92,7 @@ tmux_send () {
 	case ${cmd} in
 		mcom)
 			fullcmd="${cmd} $*"
-			title="mail: compose"
+			title="compose"
 			;;
 		mfwd|mrep)
 			args=$(set_args $*)
@@ -361,11 +371,32 @@ process_command () {
 			magrep ${afterargs} | mthread | mscan
 			return
 			;;
-		restrict) #+ restrict args - run magrep and set results as current seq
+		restrict) #+ restrict args - magrep and set results as current seq
 			magrep ${afterargs} | mthread | mseq -S | mscan
 			return
 			;;
-		dirs) #+ dirs - list Maildirs with new mail in them
+		search) #+ search mairix-expr - run mairix on args and cd into search
+			#+ search mairix dumps search results into a folder named search
+			#+ search via hardlinks, by default it is overwritten every search
+			#+ search use -a to append results. mairix-expr cheat-sheet:
+			#+ search t:to c:cc f:from s:subj m:msgid b:body d:date1-date2
+			#+ search z:lowsize-hisize n:attachment F:flags
+			#+ search also can be combined e.g. tc:to+from bs:body+subj
+			#+ search a:addr is short for tcf:addr (to/cc/from)
+			${mairix} -H ${afterargs}
+			rescan cd search
+			return
+			;;
+		find)	#+ find mairix-expr - like search but dump excerpts to stdout
+			${mairix} -x ${afterargs}
+			return
+			;;
+		index)	#+ index - run mairix to (re)index your mail, default is -p
+			echo ${mairix} ${index_opts}
+			${mairix} ${index_opts}
+			return
+			;;
+		dirs)	#+ dirs - list Maildirs with new mail in them
 			mnewdirs | rs
 			return
 			;;
@@ -409,16 +440,30 @@ process_command () {
 	fi
 }
 
+spew_status () {
+	echo ''
+	mlist -i ${basedir}/${FOLDER}
+}
+
 msgno=
 if [ $quiet_start -eq 0 ]; then
 	${CMD} ${FOLDER}
-	echo folder: ${FOLDER}, cmd: ${CMD}, editor: ${EDITOR}
+	echo "folder: ${FOLDER}, cmd: ${CMD}, editor: ${EDITOR}"
 	give_help brief
 fi
 if [ $# -gt 0 ]; then
 	process_command $*
 	[ $only_one -ne 0 ] && exit 0
 fi
-while read nothing?"${FOLDER}${new}> " afterargs; do
-	[ -n "${nothing}" ] && process_command ${nothing} ${afterargs}
+
+trap 'spew_status; echo "(type quit to quit or ^C)"' QUIT
+trap 'spew_status; echo QUITTING; quitting=1' INT TERM
+
+quitting=0
+while [ $quitting -eq 0 ]; do
+	while read nothing?"${FOLDER}${new}> " afterargs; do
+		[ -n "${nothing}" ] && process_command ${nothing} ${afterargs}
+	done
 done
+
+exit 0
