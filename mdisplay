@@ -50,10 +50,14 @@ for arg in $*; do
 	esac
 done
 
+fold="$FOLDER"
+[ -z "$fold" ] && fold="msg"
+title="[$fold #$*]"
+
 if [ $use_xterm -ne 0 ]; then
-	xterm -geom 80x32 -title "[msg $*]" -e "mless $*"
+	xterm -geom 80x32 -title "$title" -e "mless $*"
 elif [ $use_tmux -ne 0 ]; then
-	tmux new-window -n "[msg $*]" "mless $*"
+	tmux new-window -n "$title" "mless $*"
 else
 	mshow $*
 fi
