@@ -1,0 +1,70 @@
+#!/bin/ksh
+
+# I run this in a small pane in my tmux mail window.  I resize it
+# sometimes so it must conform itself to its current size to look
+# respectable.
+
+alias my=typeset
+
+sleep=$1
+[ -z "$sleep" ] && sleep=30
+
+stty_size_field () {
+	stty -a | perl -lne '/(\d+)\s+'$1'/ && print qq|$1\n|'
+}
+
+tty_rows () {
+	echo $(stty_size_field rows)
+}
+
+tty_cols () {
+	echo $(stty_size_field columns)
+}
+
+center_msg () {
+	my x y str mid_len
+	str="$*"
+	mid_len=${#str}
+	mid_len=$(expr $mid_len / 2)
+	x=$(tty_cols)
+	y=$(tty_rows)
+	y=$(expr $y / 2)
+	y=$(expr $y - 1)
+	x=$(expr $x / 2)
+	x=$(expr $x - $mid_len)
+	tput cup $y $x bold
+	echo -n $str
+	tput sgr0 civis
+}
+
+check () {
+	my cols had=0 tmpf=$1
+	tput clear cvvis
+	cols=$(tty_cols)
+	[ -z "$cols" ] && cols=$COLUMNS
+	[ $had -eq 0 ] && center_msg '~looking...~'
+	mnewdirs > ${tmpf}
+	tput clear cvvis
+	if [ ! -s "$tmpf" ]; then
+		center_msg '~no unread mail~'
+		had=0
+	else
+		cat ${tmpf} | rs -e -w$cols
+		had=1
+	fi
+}
+
+tmpf=${TMPDIR-/tmp}/foldercheck.$$
+
+interrupted () {
+	rm -f ${tmpf}
+	reset
+	exit 1
+}
+
+trap 'interrupted' INT TERM
+
+while true; do
+	check ${tmpf}
+	sleep ${sleep}
+done

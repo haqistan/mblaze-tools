@@ -64,15 +64,15 @@ esac
 }
 
 input_cmd=cat
-[ -n "$msgs" ] && {
+if [ -n "$msgs" ]; then
 	inputs=""
 	for picker in ${msgs}; do
 		collect inputs $(mpick ${picker} 2>/dev/null)
 	done
 	input_cmd="echo ${inputs}"
-}
+fi
 
-eval "${input_cmd}" | while read filename; dodst
+eval "${input_cmd}" | while read filename; do
 	if [ -f ${filename} ]; then
 		${mvcp} ${filename} ${dst}
 		echo ${dst}/$(basename ${filename})

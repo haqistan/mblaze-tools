@@ -1,8 +1,8 @@
 # Some scripts on top of mblaze that suit my workflow
 
-BINDIR?=/usr/local/bin
+BINDIR?=${HOME}/bin
 SCRIPTS=mapply minbox mincall mmv mnewbox mnewdirs mpane mrespam mrm \
-	msign msummary munspam mdecrypt mloop mdisplay
+	msign msummary munspam mdecrypt mloop mdisplay foldercheck
 
 all: ${SCRIPTS}
 

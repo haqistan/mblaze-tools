@@ -375,8 +375,8 @@ process_command () {
 			magrep ${afterargs} | mthread | mseq -S | mscan
 			return
 			;;
-		search) #+ search mairix-expr - run mairix on args and cd into search
-			#+ search mairix dumps search results into a folder named search
+		search) #+ search mairix-expr - run mairix on args and cd into Search
+			#+ search mairix dumps search results into a folder named Search
 			#+ search via hardlinks, by default it is overwritten every search
 			#+ search use -a to append results. mairix-expr cheat-sheet:
 			#+ search t:to c:cc f:from s:subj m:msgid b:body d:date1-date2
@@ -386,7 +386,7 @@ process_command () {
 			${mairix} -H ${afterargs}
 			CMD=minbox
 			new=''
-			rescan cd search
+			rescan cd Search
 			return
 			;;
 		find)	#+ find mairix-expr - like search but dump excerpts to stdout

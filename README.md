@@ -93,3 +93,4 @@ A brief description of what these scripts do:
      mencrypt   encrypt msg using gnupg (run from mcom(1)) (symlink -> msign)
     msummary    print colorized one-line summary of msg on stdin
     munspam     mark messages on stdin as not spam (false positive)
+    foldercheck script I run in a small tmux pane to check for new mail
