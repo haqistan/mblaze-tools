@@ -32,6 +32,7 @@ center_msg () {
 	y=$(expr $y - 1)
 	x=$(expr $x / 2)
 	x=$(expr $x - $mid_len)
+	tput clear
 	tput cup $y $x bold
 	echo -n $str
 	tput sgr0 civis
@@ -44,11 +45,11 @@ check () {
 	[ -z "$cols" ] && cols=$COLUMNS
 	[ $had -eq 0 ] && center_msg '~looking...~'
 	mnewdirs > ${tmpf}
-	tput clear cvvis
 	if [ ! -s "$tmpf" ]; then
 		center_msg '~no unread mail~'
 		had=0
 	else
+		[ $had -eq 0 ] && tput clear
 		cat ${tmpf} | rs -e -w$cols
 		had=1
 	fi

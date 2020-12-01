@@ -12,7 +12,7 @@ reading/setting the main cutbuffer, where it is assumed there is a
 msg# in the current sequence.  This means you can select a msg# with
 the mouse in tmux and operate on it; not quite point-and-click but
 close enough for me.  It also means that it's probably best to run
-mloop and friends in their own dedicated tmux session, which makes
+mb and friends in their own dedicated tmux session, which makes
 them look kinda like a real MUA if you squint, but then I personally
 prefer typing commands to navigating menus.  There's no readline
 support for the read command in OpenBSD's
@@ -45,8 +45,8 @@ Things you can set there:
 * InboxName: the relative path of your inbox under Maildir
 * MaildirBase: the base directory of your maildir tree
 * MdisplayOpts: default options to the mdisplay script
-* MloopQuiet: if set mloop behaves as if -q was specified by default
-* MpaneLines: size in lines of pane mpane creates for mloop
+* MloopQuiet: if set mb behaves as if -q was specified by default
+* MpaneLines: size in lines of pane mpane creates for mb
 
 It's probably better to set MaildirBase and InboxName and leave Inbox
 alone but there are situations where you can't.  I generally run all
@@ -55,7 +55,7 @@ folders.
 
 Use at your own risk.  On a POSIX system.  Preferably OpenBSD.  I
 store my maildir tree under ~/mail, and start this mess from inside of
-tmux by running `mloop -n` to see new messages in my in-box.  My
+tmux by running `mb -n` to see new messages in my in-box.  My
 `~/.mblaze/profile` has the following two lines at the end:
 
     MaildirBase: /home/attila/mail
@@ -81,12 +81,12 @@ A brief description of what these scripts do:
     mencrypt    encrypt an outbound message using gnupg (not yet working)
     minbox      list your inbox in threaded form, set current msg sequence
     mincall     invoke minc on all directories with new mail
-    mloop       thin command-line loop to interact with mblaze
+    mb          thin command-line loop to interact with mblaze
     mmv         given a destination folder in command line mv files on stdin
      mcp        like mmv but cp's files instead of mv'ing them (symlink -> mmv)
     mnewbox     show new messages in given folder
     mnewdirs    show all folders with new messages plus a count per folder
-    mpane       run "mnewbox; mloop" in a new tmux pane
+    mpane       run "mnewbox; mb" in a new tmux pane
     mrespam     mark messages on stdin as spam (false negative)
     mrm         like mmv but rm the messages on stdin
     msign       sign a message using gnupg (run from mcom(1))

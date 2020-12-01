@@ -2,7 +2,7 @@
 
 BINDIR?=${HOME}/bin
 SCRIPTS=mapply minbox mincall mmv mnewbox mnewdirs mpane mrespam mrm \
-	msign msummary munspam mdecrypt mloop mdisplay foldercheck
+	msign msummary munspam mdecrypt mb mdisplay foldercheck
 
 all: ${SCRIPTS}
 
