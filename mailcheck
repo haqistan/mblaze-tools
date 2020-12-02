@@ -1,0 +1,63 @@
+#!/bin/sh
+
+# simple mailcheck command to leave running in a tmux pane
+# configurable via ~/.mblaze/profile
+# by default runs fdm to check mail and mairix to index it
+# ymmv
+
+alias my=typeset
+# pirate version:
+# alias me=typeset
+
+MBLAZE=${MBLAZE-$HOME/.mblaze}
+profile="$MBLAZE/profile"
+
+sleep=$1
+[ -z "$sleep" ] && sleep=$(mhdr -h MailCheckSleep $profile)
+[ -z "$sleep" ] && sleep=30
+check_cmd=$(mhdr -h MailCheckCommand $profile)
+[ -z "$check_cmd" ] && check_cmd="fdm -q fetch"
+check_lockf=$(mhdr -h MailCheckLockFile $profile)
+[ -z "$check_lockf" ] && check_lockf=$HOME/.fdm.lock
+index_cmd=$(mhdr -h MailIndexCommand $profile)
+[ -z "$index_cmd" ] && index_cmd="mairix -p"
+date_fmt=$(mhdr -h MailCheckDateFmt $profile)
+[ -z "$date_fmt" ] && date_fmt="%Y-%m-%d %H:%M"
+
+sleeper_pid=0
+
+ts () {
+	date +"$date_fmt"
+}
+
+shleep () {
+	sleep $1 & sleeper_pid=$!
+	echo $(ts) sleeping ...
+	wait $sleeper_pid 2>/dev/null
+	[ $? -ne 0 ] && echo $(ts) wakeup
+	sleeper_pid=0
+}
+
+wakeup () {
+	[ $sleeper_pid -ne 0 ] && kill $sleeper_pid
+}
+
+mailcheck () {
+	echo $(ts) checking ...
+	${check_cmd}
+	${index_cmd}
+}
+
+interrupted () {
+	rm -f $HOME/.fdm.lock
+	exit 1
+}
+
+trap 'interrupted' INT TERM QUIT
+trap 'wakeup' INFO
+
+rm -f $HOME/.fdm.lock
+while true; do
+	mailcheck
+	shleep ${sleep}
+done

@@ -1,6 +1,6 @@
 #!/bin/sh
 
-# mloop [-nq1] [folder [command...]] - thin REPL for mblaze(7)
+# mb [-nq1] [folder [command...]] - thin REPL for mblaze(7)
 
 # If invoked with -n, we display only new mail in whatever folder
 # we're examining, which by default is your inbox as configured in
@@ -26,6 +26,10 @@
 # I use this script on OpenBSD, where /bin/{k,}sh's read built-in does
 # not support line editing, and I'm fine with it.  YMMV.
 
+alias my=typeset
+# pirate version:
+# alias me=typeset
+
 SCRIPT=$0
 
 # query config in ~/.mblaze/profile
@@ -49,9 +53,10 @@ syncrmt=$(mhdr -h SyncRemoteDir $profile)
 mairix=$(mhdr -h MairixCmd $profile)
 [ -z "${mairix}" ] && mairix=mairix
 index_opts=$(mhdr -h MairixIndexOpts $profile)
+CMD=$(mhdr -h MBDefaultCmd $profile)
+[ -z "$CMD" ] && CMD=minbox
 
 # parse command-line args
-CMD=minbox
 quiet_start=$(mhdr -h MloopQuiet $profile)
 [ -z "${quiet_start}" ] && quiet_start=0
 f=
@@ -86,7 +91,7 @@ export FOLDER # for subprocesses
 
 # common back-end to mcom/mfwd/mrep
 tmux_send () {
-	typeset cmd args msgno fullcmd title
+	my cmd args msgno fullcmd title
 	cmd=$1
 	shift
 	case ${cmd} in
@@ -120,7 +125,7 @@ fwd () {
 
 # rescan current folder and display the current sequence
 rescan () {
-	typeset nothing afterargs
+	my nothing afterargs
 	nothing=$1
 	shift
 	afterargs="$*"
@@ -141,7 +146,7 @@ rescan () {
 # and shift it out.
 # return what is left
 set_args () {
-	typeset the_args
+	my the_args
 	the_args="$*"
 	case ${the_args} in
 		[0-9]*)
@@ -159,7 +164,7 @@ set_args () {
 # 1..$number_attachments of cur message, don't treat it as a msg#,
 # treat it as attachment#
 special_args () {
-	typeset the_args cur natt
+	my the_args cur natt
 	cur=$(tmux show-buffer)
 	the_args="$*"
 	case $1 in
@@ -185,7 +190,7 @@ special_args () {
 
 # search this script for hash-plus comments and display them in various ways
 give_help () {
-	typeset cmds cmd
+	my cmds cmd
 	# get the list of commands for starters, alpha-sorted
 	cmds=$(grep '#\+' $SCRIPT | \
 		       sed -e 's/^.*#\+ //' | awk '{ print $1 }' | sort -u)
@@ -220,7 +225,7 @@ usage () {
 
 # handle one command and optional args
 process_command () {
-	typeset nothing afterargs beforeargs cmd do_mscan tohost
+	my nothing afterargs beforeargs cmd do_mscan tohost
 	nothing=$1
 	shift
 	afterargs="$*"
@@ -330,24 +335,99 @@ process_command () {
 		quit)	#+ quit - exit program
 			exit 0
 			;;
-		list|ls|open|cd|clear|inbox) #+ list - (re)list current folder
-			#+ ls - (re)list current folder
+		list|ls|open|cd|clear|inbox) #+ list [slice] - (re)list current folder
+			#+ ls [slice] - (re)list current folder
+			#+ ls if the optional slice is specified, only that slice of the
+			#+ ls folder (new or cur) will be displayed. if it is a positive
+			#+ ls number, that many from the front are displayed. if it is a
+			#+ ls negative number, that many from the end. if it is a range
+			#+ ls of numbers separated by a dash, e.g. 1-20, then that range
+			#+ ls of messages is displayed. the setting of a slice is sticky,
+			#+ ls meaning it is remembered and carries over to other commands
+			#+ ls c.f. like new and all.
 			#+ open folder - switch to different folder
 			#+ cd folder - switch to different folder
 			#+ clear - re-list current folder
 			#+ inbox - switch to in-box and list
+			case "${afterargs}" in
+				[0-9]*)
+					MB_HEAD=${afterargs}
+					export MB_HEAD
+					unset MB_TAIL MB_MID
+					;;
+				-[0-9]*)
+					MB_TAIL=${afterargs}
+					export MB_TAIL
+					unset MB_HEAD MB_MID
+					;;
+				[0-9]*-[0-9]*)
+					MB_MID=${afterargs}
+					export MB_MID
+					unset MB_HEAD MB_TAIL
+					;;
+				-)
+					unset MB_HEAD MB_TAIL MB_MID
+					afterargs=""
+					;;
+			esac
 			rescan ${nothing} ${afterargs}
 			return
 			;;
-		all)	#+ all - switch from new view to all messages in folder
+		all)	#+ all [slice] - switch from new view to all messages in folder
+			#+ all the optional slice has the same syntax as for the ls
+			#+ all command, so: all -10 displays the last ten read messages
 			CMD=minbox
 			new=
+			case "${afterargs}" in
+				[0-9]*)
+					MB_HEAD=${afterargs}
+					export MB_HEAD
+					unset MB_TAIL MB_MID
+					;;
+				-[0-9]*)
+					MB_TAIL=${afterargs}
+					export MB_TAIL
+					unset MB_HEAD MB_MID
+					;;
+				[0-9]*-[0-9]*)
+					MB_MID=${afterargs}
+					export MB_MID
+					unset MB_HEAD MB_TAIL
+					;;
+				-)
+					unset MB_HEAD MB_TAIL MB_MID
+					afterargs=""
+					;;
+			esac
 			rescan ${nothing} ${afterargs}
 			return
 			;;
-		new)	#+ new - switch from all messages to only new ones
+		new)	#+ new [slice] - switch from all messages to only new ones
+			#+ new the optional slice has the same syntax as for the ls
+			#+ new command, so: new -10 restricts to the last 10 new messages
 			CMD=mnewbox
 			new='*'
+			case "${afterargs}" in
+				[0-9]*)
+					MB_HEAD=${afterargs}
+					export MB_HEAD
+					unset MB_TAIL MB_MID
+					;;
+				-[0-9]*)
+					MB_TAIL=${afterargs}
+					export MB_TAIL
+					unset MB_HEAD MB_MID
+					;;
+				[0-9]*-[0-9]*)
+					MB_MID=${afterargs}
+					export MB_MID
+					unset MB_HEAD MB_TAIL
+					;;
+				-)
+					unset MB_HEAD MB_TAIL MB_MID
+					afterargs=""
+					;;
+			esac
 			rescan ${nothing} ${afterargs}
 			return
 			;;
@@ -452,6 +532,16 @@ spew_status () {
 	rm -f $MBLAZE/seq-
 }
 
+slice () {
+	if [ -n "$MB_HEAD" ]; then
+		echo +${MB_HEAD}
+	elif [ -n "$MB_TAIL" ]; then
+		echo ${MB_TAIL}
+	elif [ -n "$MB_MID" ]; then
+		echo :${MB_MID}
+	fi
+}
+
 msgno=
 if [ $quiet_start -eq 0 ]; then
 	${CMD} ${FOLDER}
@@ -468,7 +558,7 @@ trap 'spew_status; echo QUITTING; quitting=1' INT TERM
 
 quitting=0
 while [ $quitting -eq 0 ]; do
-	while read nothing?"${FOLDER}${new}> " afterargs; do
+	while read nothing?"${FOLDER}${new}$(slice)> " afterargs; do
 		[ -n "${nothing}" ] && \
 			process_command ${nothing} ${afterargs}
 	done

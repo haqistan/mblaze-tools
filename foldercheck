@@ -1,10 +1,12 @@
-#!/bin/ksh
+#!/bin/sh
 
 # I run this in a small pane in my tmux mail window.  I resize it
 # sometimes so it must conform itself to its current size to look
 # respectable.
 
 alias my=typeset
+# pirate version:
+# alias me=typeset
 
 sleep=$1
 [ -z "$sleep" ] && sleep=30

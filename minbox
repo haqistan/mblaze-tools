@@ -19,4 +19,13 @@ inbox=$(mhdr -h Inbox "$MBLAZE/profile")
 	shift
 }
 mlist_args="$*"
-mlist ${mlist_args} ${inbox} | mthread | mseq -S | mscan
+filter=cat
+if [ -n "$MB_HEAD" ]; then
+	filter="head -$MB_HEAD"
+elif [ -n "$MB_TAIL" ]; then
+	filter="tail $MB_TAIL"
+elif [ -n "$MB_MID" ]; then
+	sedexp=$(echo $MB_MID | sed -e 's/-/,/')
+	filter="sed -n -e ${sedexp}p"
+fi
+mlist ${mlist_args} ${inbox} | ${filter} | mthread | mseq -S | mscan
