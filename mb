@@ -510,6 +510,12 @@ process_command () {
 			;;
 
 		.) ;;	#+ . - a single dot displays the current message
+		!*)	#+ ! cmd ... - run a shell command
+			#+ ! this is an ancient unix tradition
+			nothing=$(echo ${nothing} | sed -e 's/^!//')
+			$SHELL -c "${nothing} ${afterargs}"
+			return
+			;;
 	esac
 	msgno=$(tmux show-buffer)
 	if [ -n "${msgno}" ]; then

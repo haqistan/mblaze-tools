@@ -71,6 +71,7 @@ wakeup () {
 tmpf=${TMPDIR-/tmp}/foldercheck.$$
 
 interrupted () {
+	wakeup
 	rm -f ${tmpf}
 	reset
 	exit 1
