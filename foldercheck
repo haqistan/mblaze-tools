@@ -40,7 +40,6 @@ center_msg () {
 
 check () {
 	my cols had=0 tmpf=$1
-	tput clear cvvis
 	cols=$(tty_cols)
 	[ -z "$cols" ] && cols=$COLUMNS
 	[ $had -eq 0 ] && center_msg '~looking...~'
@@ -55,6 +54,17 @@ check () {
 	fi
 }
 
+sleeper_pid=0
+
+shleep () {
+	sleep $1 & sleeper_pid=$!
+	wait $sleeper_pid 2>/dev/null
+}
+
+wakeup () {
+	[ $sleeper_pid -ne 0 ] && kill $sleeper_pid
+}
+
 tmpf=${TMPDIR-/tmp}/foldercheck.$$
 
 interrupted () {
@@ -64,8 +74,9 @@ interrupted () {
 }
 
 trap 'interrupted' INT TERM
+trap 'wakeup' INFO
 
 while true; do
 	check ${tmpf}
-	sleep ${sleep}
+	shleep ${sleep}
 done
