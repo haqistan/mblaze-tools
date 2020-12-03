@@ -65,7 +65,7 @@ shleep () {
 }
 
 wakeup () {
-	[ $sleeper_pid -ne 0 ] && kill $sleeper_pid
+	[ $sleeper_pid -ne 0 ] && kill $sleeper_pid && wait $sleeper_pid
 }
 
 tmpf=${TMPDIR-/tmp}/foldercheck.$$
