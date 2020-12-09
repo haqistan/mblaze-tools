@@ -78,7 +78,7 @@ interrupted () {
 }
 
 trap 'interrupted' INT TERM QUIT
-trap 'wakeup' INFO
+trap 'wakeup' INFO WINCH
 
 while true; do
 	check ${tmpf}
