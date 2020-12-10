@@ -217,6 +217,13 @@ give_help () {
 			echo "or: type msg# / sel msg# w/mouse in tmux and use . to see in new pane"
 			echo "sigs: ^\ (QUIT) = cur folder status, ^C (INT) = quit gracefully"
 			;;
+		man)
+			if [ -z "$2" ]; then
+				echo "man what?"
+			else
+				man $2
+			fi
+			;;
 	esac
 }
 
@@ -376,11 +383,11 @@ process_command () {
 			;;
 		all|cur|new) #+ cur [slice] - switch from new to cur in the current Maildir
 			#+ cur the optional slice has the same syntax as for the ls
-			#+ cur command, so: all -10 displays the last ten read messages
-			#+ all [slice] - another name for the cur command
+			#+ cur command, so: cur -10 displays the last ten messages in cur
+			#+ all [slice] - alias for cur
 			#+ new [slice] - switch from cur to new in the current Maildir
 			#+ new the optional slice has the same syntax as for the ls
-			#+ new command, so: new -10 restricts to the last 10 new messages
+			#+ new command, so: new -10 shows the last ten messages in new
 			if [ ${nothing} = "new" ]; then
 				CMD=mnewbox
 				new='*'
@@ -428,11 +435,20 @@ process_command () {
 			fi
 			cmd=munspam
 			;;
-		grep)	#+ grep args... - run magrep args on current folder
+		grep)	#+ grep args... - run magrep args on current folder,
+			#+ grep displays results on stdout, no change to current seq.
+			#+ grep magrep cheat sheet: header:regexp find messages where
+			#+ grep header matches regexp, /:regexp find messages where
+			#+ grep body matches regexp. only one regexp-style arg is
+			#+ grep allowed, subsequent args are an optional message seq.
+			#+ grep by default the current msgseq is searched, c.f.
+			#+ grep magrep(1) et al.
 			magrep ${afterargs} | mthread | mscan
 			return
 			;;
-		restrict) #+ restrict args - magrep and set results as current seq
+		restrict) #+ restrict args - like grep but sets current msgseq
+			#+ restrict sets the current msgseq to matching messages,
+			#+ restrict same syntax as the grep command
 			magrep ${afterargs} | mthread | mseq -S | mscan
 			return
 			;;
@@ -473,8 +489,9 @@ process_command () {
 			${synccmd} ${basedir} ${tohost}:${syncrmt}
 			return
 			;;
-		help|brief) #+ help - list commands and what they do
-			#+ brief - print a brief usage summary/command list
+		help|brief|man) #+ help [cmd] - list commands and what they do
+			#+ brief [cmd] - print a brief usage summary/command list
+			#+ man [args] - use the system man(1) command on args
 			give_help ${nothing} ${afterargs}
 			return
 			;;
