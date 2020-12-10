@@ -5,10 +5,6 @@
 # by default runs fdm to check mail and mairix to index it
 # ymmv
 
-alias my=typeset
-# pirate version:
-# alias me=typeset
-
 MBLAZE=${MBLAZE-$HOME/.mblaze}
 profile="$MBLAZE/profile"
 
@@ -21,6 +17,7 @@ check_lockf=$(mhdr -h MailCheckLockFile $profile)
 [ -z "$check_lockf" ] && check_lockf=$HOME/.fdm.lock
 index_cmd=$(mhdr -h MailIndexCommand $profile)
 [ -z "$index_cmd" ] && index_cmd="mairix -p"
+[ "$index_cmd" = "-" ] && index_cmd=""
 date_fmt=$(mhdr -h MailCheckDateFmt $profile)
 [ -z "$date_fmt" ] && date_fmt="%Y-%m-%d %H:%M"
 
@@ -45,19 +42,26 @@ wakeup () {
 mailcheck () {
 	echo $(ts) checking ...
 	${check_cmd}
-	${index_cmd}
+	if [ -n "${index_cmd}" ]; then
+		echo $(ts) indexing ...
+		${index_cmd}
+	fi
+}
+
+clear_lockfile () {
+	[ -n "${check_lockf}" ] && rm -f ${check_lockf}
 }
 
 interrupted () {
 	wakeup
-	rm -f $HOME/.fdm.lock
+	clear_lockfile
 	exit 1
 }
 
 trap 'interrupted' INT TERM QUIT
 trap 'wakeup' INFO
 
-rm -f $HOME/.fdm.lock
+clear_lockfile
 while true; do
 	mailcheck
 	shleep ${sleep}

@@ -214,7 +214,8 @@ give_help () {
 		brief)
 			echo "one of:"
 			echo ${cmds} | rs
-			echo "or: type msg# / sel msg# w/mouse in tmux and hit RET or . to see in new pane"
+			echo "or: type msg# / sel msg# w/mouse in tmux and use . to see in new pane"
+			echo "sigs: ^\ (QUIT) = cur folder status, ^C (INT) = quit gracefully"
 			;;
 	esac
 }
@@ -373,40 +374,20 @@ process_command () {
 			rescan ${nothing} ${afterargs}
 			return
 			;;
-		all)	#+ all [slice] - switch from new view to all messages in folder
-			#+ all the optional slice has the same syntax as for the ls
-			#+ all command, so: all -10 displays the last ten read messages
-			CMD=minbox
-			new=
-			case "${afterargs}" in
-				[0-9]*)
-					MB_HEAD=${afterargs}
-					export MB_HEAD
-					unset MB_TAIL MB_MID
-					;;
-				-[0-9]*)
-					MB_TAIL=${afterargs}
-					export MB_TAIL
-					unset MB_HEAD MB_MID
-					;;
-				[0-9]*-[0-9]*)
-					MB_MID=${afterargs}
-					export MB_MID
-					unset MB_HEAD MB_TAIL
-					;;
-				-)
-					unset MB_HEAD MB_TAIL MB_MID
-					afterargs=""
-					;;
-			esac
-			rescan ${nothing} ${afterargs}
-			return
-			;;
-		new)	#+ new [slice] - switch from all messages to only new ones
+		all|cur|new) #+ cur [slice] - switch from new to cur in the current Maildir
+			#+ cur the optional slice has the same syntax as for the ls
+			#+ cur command, so: all -10 displays the last ten read messages
+			#+ all [slice] - another name for the cur command
+			#+ new [slice] - switch from cur to new in the current Maildir
 			#+ new the optional slice has the same syntax as for the ls
 			#+ new command, so: new -10 restricts to the last 10 new messages
-			CMD=mnewbox
-			new='*'
+			if [ ${nothing} = "new" ]; then
+				CMD=mnewbox
+				new='*'
+			else
+				CMD=minbox
+				new=
+			fi
 			case "${afterargs}" in
 				[0-9]*)
 					MB_HEAD=${afterargs}
@@ -497,8 +478,8 @@ process_command () {
 			give_help ${nothing} ${afterargs}
 			return
 			;;
-		[0-9]*) tmux set-buffer ${nothing} ;;
-
+		[0-9]*) tmux set-buffer ${nothing}
+			;;
 		[a-zA-Z]*)
 			if [ -d ${basedir}/${nothing} ]; then
 				rescan cd ${nothing}
