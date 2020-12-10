@@ -57,6 +57,14 @@ folders.
 If MBDefaultCmd is not set, then it defaults to minbox; if the `-n`
 option is specified, then it defaults to mnewbox.
 
+## Screenshot
+
+Everyone loves a screenshot, so:
+
+![Screenshot of tmux session running mb, mailcheck and foldercheck](./tmux-screenshot-half.png)
+
+## Actual Use
+
 Use at your own risk.  On a POSIX system.  Preferably OpenBSD.  I
 store my maildir tree under ~/mail, and start this mess from inside of
 tmux by running `mb -n` to see new messages in my in-box.  My
