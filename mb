@@ -212,9 +212,10 @@ give_help () {
 			fi
 			;;
 		brief)
-			echo "one of:"
+			echo "commands/topics:"
 			echo ${cmds} | rs
-			echo "or: type msg# / sel msg# w/mouse in tmux and use . to see in new pane"
+			echo "type msg# / sel msg# w/mouse in tmux and use . to see in new pane"
+			echo "use: brief for this short help again, help <topic> for longer help"
 			echo "sigs: ^\ (QUIT) = cur folder status, ^C (INT) = quit gracefully"
 			;;
 		man)
@@ -470,7 +471,11 @@ process_command () {
 			${mairix} -x ${afterargs}
 			return
 			;;
-		index)	#+ index - run mairix to (re)index your mail, default is -p
+		index)	#+ index - run mairix (or whatever) to (re)index your mail
+			#+ index runs whatever indexer you have configured (def: mairix)
+			#+ index to (re)index your mail for search, default arg is -p.
+			#+ index the mailcheck script that comes with mb also can do
+			#+ index this automatically as mail is fetched.
 			echo ${mairix} ${index_opts}
 			${mairix} ${index_opts}
 			return
@@ -493,6 +498,19 @@ process_command () {
 			#+ brief [cmd] - print a brief usage summary/command list
 			#+ man [args] - use the system man(1) command on args
 			give_help ${nothing} ${afterargs}
+			return
+			;;
+		prompt)
+			#+ prompt - not actually a command, just doc :-)
+			#+ prompt the mb prompt has the following parts:
+			#+ prompt the name of the folder you are viewing,
+			#+ prompt a star if you are in new instead of cur,
+			#+ prompt and any slice you have restricted to via
+			#+ prompt e.g. the new, cur or ls commands and a
+			#+ prompt greater-than sign, e.g. INBOX*-10>
+			#+ prompt means you are in your inbox viewing
+			#+ prompt only the last ten messages in new
+			give_help help prompt
 			return
 			;;
 		[0-9]*) tmux set-buffer ${nothing}

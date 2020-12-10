@@ -15,7 +15,7 @@ check_cmd=$(mhdr -h MailCheckCommand $profile)
 [ -z "$check_cmd" ] && check_cmd="fdm -q fetch"
 check_lockf=$(mhdr -h MailCheckLockFile $profile)
 [ -z "$check_lockf" ] && check_lockf=$HOME/.fdm.lock
-index_cmd=$(mhdr -h MailIndexCommand $profile)
+index_cmd=$(mhdr -h MailCheckIndexCommand $profile)
 [ -z "$index_cmd" ] && index_cmd="mairix -p"
 [ "$index_cmd" = "-" ] && index_cmd=""
 date_fmt=$(mhdr -h MailCheckDateFmt $profile)
@@ -62,6 +62,7 @@ trap 'interrupted' INT TERM QUIT
 trap 'wakeup' INFO
 
 clear_lockfile
+[ -z "${index_cmd}" ] && echo "[automatic indexing is OFF]"
 while true; do
 	mailcheck
 	shleep ${sleep}
