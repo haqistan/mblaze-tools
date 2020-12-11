@@ -1,4 +1,4 @@
-# Tooling for mblaze #
+# Tooling for mblaze
 
 I make no advertisements for these scripts except: they are generally
 short and do one thing.  Well...
@@ -14,10 +14,7 @@ the mouse in tmux and operate on it; not quite point-and-click but
 close enough for me.  It also means that it's probably best to run
 mb and friends in their own dedicated tmux session, which makes
 them look kinda like a real MUA if you squint, but then I personally
-prefer typing commands to navigating menus.  There's no readline
-support for the read command in OpenBSD's
-[ksh(1)](https://man.openbsd.org/ksh) and I'm fine with that, but of
-course YMMV.
+prefer typing commands to navigating menus.
 
 These scripts assume they are installed on a BSD system, or at least
 one where the normal BSD utilities are available, including
@@ -25,10 +22,12 @@ one where the normal BSD utilities are available, including
 [fmt(1)](https://man.openbsd.org/fmt),
 [awk(1)](https://man.openbsd.org/awk), etc.  If you try this somewhere
 other than OpenBSD you'll also have to make sure Perl is installed.
-The mb script uses rl, a small Perl program included in this package;
-it depends on the Term::ReadLine::Gnu Perl module being installed
-and by default saves your mb command history in ~/.mb.history.
-This can all be overridden in your configuration (see below).
+
+The mb script uses [rl](rl), a small Perl program included in this
+package; it depends on the `Term::ReadLine::Gnu` Perl module being
+installed and by default saves your mb command history in
+`~/.mb.history`.  This can all be overridden in your configuration
+(see below).
 
 You should read mblaze(7) and the rest of the mblaze man pages if you
 want to understand what is going on here; also, reading

@@ -61,7 +61,7 @@ rl - read line with editing and history
 
 =head1 SYNOPSIS
 
-rl [-vH] [-F histfile] progname [prompt]
+rl [-vH] [-F histfile] progname [prompt...]
 
 Options:
 
