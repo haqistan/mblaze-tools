@@ -192,6 +192,11 @@ of the history are listed.  If the number is postive, that many
 entries from recent history, and if zero the whole history
 is listed to stderr.
 
+=item * .history /pattern.../
+
+Search the history for the given regexp and print matching entries to
+stderr.
+
 =item * .history clear [number]
 
 With no arguments clears all of history.  Otherwise the
