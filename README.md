@@ -25,10 +25,16 @@ one where the normal BSD utilities are available, including
 [fmt(1)](https://man.openbsd.org/fmt),
 [awk(1)](https://man.openbsd.org/awk), etc.  If you try this somewhere
 other than OpenBSD you'll also have to make sure Perl is installed.
+The mb script uses rl, a small Perl program included in this package;
+it depends on the Term::ReadLine::Gnu Perl module being installed
+and by default saves your mb command history in ~/.mb.history.
+This can all be overridden in your configuration (see below).
 
 You should read mblaze(7) and the rest of the mblaze man pages if you
 want to understand what is going on here; also, reading
 [tmux(1)](https://man.openbsd.org/tmux) is not a terrible idea.
+
+## Configuration
 
 I pile on with mblaze and store configuration information in
 `~/.mblaze/profile` in the form of text that looks like email headers;
@@ -45,9 +51,11 @@ Things you can set there:
 * InboxName: the relative path of your inbox under Maildir
 * MaildirBase: the base directory of your maildir tree
 * MdisplayOpts: default options to the mdisplay script
-* MloopQuiet: if set mb behaves as if -q was specified by default
 * MpaneLines: size in lines of pane mpane creates for mb
+* MBStartQuiet: if set mb behaves as if -q was specified by default
 * MBDefaultCmd: command to run when mb starts, def depends on options
+* MBReadLineCmd: command to use to read a line in mb, def: rl
+* MBHistoryFile: where to store your mb/rl history, def ~/.mb.history
 
 It's probably better to set MaildirBase and InboxName and leave Inbox
 alone but there are situations where you can't.  I generally run all
@@ -120,3 +128,4 @@ A brief description of what these scripts do:
     munspam     mark messages on stdin as not spam (false positive)
     foldercheck script I run in a small tmux pane to check for new mail
     mailcheck   script I run like foldercheck to fetch mail from servers
+    rl          small Perl GNU ReadLine interface to give mb editing/history

@@ -12,7 +12,7 @@
 # then we do not drop into the main loop and instead only execute
 # whatever command was given as arguments and exit.
 
-# You can switch between new/all mail using the new/all commands. 
+# Switch between new/cur sides of a Maildir w/the new/cur commands.
 
 # The help system is based on hash-plus comments in this script, c.f
 # the give_help function, below.
@@ -23,8 +23,10 @@
 # hit ^\ for a brief status report on the current folder
 # use ^C to interrupt something, you land back in the loop
 
-# I use this script on OpenBSD, where /bin/{k,}sh's read built-in does
-# not support line editing, and I'm fine with it.  YMMV.
+# This script comes with a small Perl program, rl, which uses GNU
+# ReadLine and handles history.  For it to work you have to have the
+# Term::ReadLine::Gnu Perl module installed on your system (pkg_add
+# p5-Term-ReadLine-Gnu on OpenBSD).
 
 alias my=typeset
 # pirate version:
@@ -55,9 +57,13 @@ mairix=$(mhdr -h MairixCmd $profile)
 index_opts=$(mhdr -h MairixIndexOpts $profile)
 CMD=$(mhdr -h MBDefaultCmd $profile)
 [ -z "$CMD" ] && CMD=minbox
+rl_cmd=$(mhdr -h MBReadLineCmd $profile)
+[ -z "${rl_cmd}" ] && rl_cmd=rl
+rl_hist=$(mhdr -h MBHistoryFile $profile)
+[ -n "${rl_hist}" ] && rl_cmd="${rl_cmd} -F ${rl_hist}"
 
 # parse command-line args
-quiet_start=$(mhdr -h MloopQuiet $profile)
+quiet_start=$(mhdr -h MBStartQuiet $profile)
 [ -z "${quiet_start}" ] && quiet_start=0
 f=
 only_one=0
@@ -580,10 +586,14 @@ trap 'spew_status; echo QUITTING; quitting=1' INT TERM
 
 quitting=0
 while [ $quitting -eq 0 ]; do
-	while read nothing?"${FOLDER}${new}$(slice)> " afterargs; do
-		[ -n "${nothing}" ] && \
-			process_command ${nothing} ${afterargs}
-	done
+	line=$(${rl_cmd} mb "${FOLDER}${new}$(slice)> ")
+	if [ $? -ne 0 ]; then
+		echo '  [EOF]'
+		quitting=1
+	elif [ -n "${line}" ]; then
+		set -- $line
+		process_command $*
+	fi
 done
 
 exit 0
