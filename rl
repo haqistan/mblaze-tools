@@ -93,20 +93,32 @@ sub grep {
 }
 
 package main;
-	
+
+our %STYLES = (
+	bold => 'so,se,se,se',
+	underline => 'us,ue,ue,ue',
+	plain => '',
+);
+
 MAIN: {
-	my($help,$no_history,$history_file,$verbose);
+	my($help,$no_history,$history_file,$verbose,$style);
 	Getopt::Long::Configure("bundling");
 	GetOptions(
 		'help|?' => \$help,
 		'no-history|H' => \$no_history,
 		'history|F=s' => \$history_file,
+		'style|S=s' => \$style,
 		'verbose|v+' => \$verbose,
 	) or pod2usage();
 	pod2usage(-verbose => 1+$verbose) if $help;
 	my $prog = shift(@ARGV) || 'rl';
 	my $prompt = join(" ",@ARGV) || "${prog}> ";
 	my $rl = Term::ReadLine->new($prog);
+	$style //= 'plain';
+	pod2usage(-msg => "invalid style: $style")
+		unless exists $STYLES{$style};
+	my $ornaments = $STYLES{$style};
+	$rl->ornaments($ornaments);
 	$history_file //= join("/",$ENV{HOME},".${prog}.history")
 		unless $no_history;
 	warn("# $prog history file: $history_file\n") if $verbose;
@@ -166,6 +178,7 @@ Options:
     --verbose    -v        spew messages about loading/saving history
     --no-history -H        do not load/save history this invocation
     --history    -F file   load/save history from/to this file
+    --style      -S style  one of: bold, underline or plain (def: plain)
 
 =head1 DESCRIPTION
 
