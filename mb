@@ -62,11 +62,15 @@ index_opts=$(mhdr -h MairixIndexOpts $profile)
 CMD=$(mhdr -h MBDefaultCmd $profile)
 [ -z "$CMD" ] && CMD=minbox
 rl_cmd=$(mhdr -h MBReadLineCmd $profile)
+rl_from_profile=0
+[ -n "${rl_cmd}" ] && rl_from_profile=1
 [ -z "${rl_cmd}" ] && rl_cmd=rl
-rl_hist=$(mhdr -h MBHistoryFile $profile)
-[ -n "${rl_hist}" ] && rl_cmd="${rl_cmd} -F ${rl_hist}"
-rl_maxhist=$(mhdr -h MBHistoryMax $profile)
-[ -n "${rl_maxhist}" ] && rl_cmd="${rl_cmd} -X ${rl_maxhist}"
+if [ $rl_from_profile -eq 0 ]; then
+	rl_hist=$(mhdr -h MBHistoryFile $profile)
+	[ -n "${rl_hist}" ] && rl_cmd="${rl_cmd} -F ${rl_hist}"
+	rl_maxhist=$(mhdr -h MBHistoryMax $profile)
+	[ -n "${rl_maxhist}" ] && rl_cmd="${rl_cmd} -X ${rl_maxhist}"
+fi
 rl_cmd="${rl_cmd} -C ${OUR_CMDLIST} -D ${basedir}"
 
 # parse command-line args

@@ -212,6 +212,7 @@ MAIN: {
 			} # else ignore blank lines
 		}
 	} while (!defined($xit));
+	$input =~ s/\/+// if $input;
 	say $input if defined $input;
 	exit($xit);
 }
