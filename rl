@@ -161,11 +161,10 @@ MAIN: {
 			$history_file,rl=>$rl,verbose=>$verbose,
 			max_history=>$max_history,
 		)->load() if !$no_history && $history_file;
-	# completion
-	my $attribs = $rl->Attribs;
+	# completion: try @completes first and fall back to filenames
 	if (@completes) {
-		@completes = map { split(/,/,$_) } @completes;
-		my $attempt_cmd = sub {
+		my $attribs = $rl->Attribs;
+		$attribs->{attempted_completion_function} = sub {
 			my($text,$line,$start,$end) = @_;
 			if (substr($line,0,$start) =~ /^\s*$/) {
 				return $rl->completion_matches(
@@ -175,7 +174,7 @@ MAIN: {
 				return ();
 			}
 		};
-		$attribs->{attempted_completion_function} = $attempt_cmd;
+		@completes = map { split(/,/,$_) } @completes;
 		$attribs->{completion_word} = \@completes;
 	}
 	my $xit = undef;
