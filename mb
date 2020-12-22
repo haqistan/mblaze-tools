@@ -33,6 +33,10 @@ alias my=typeset
 # alias me=typeset
 
 SCRIPT=$0
+OUR_CMDS=$(grep '#\+' $SCRIPT | \
+		   sed -e 's/^.*#\+ //' | \
+		   awk '{ print $1 }' | sort -u)
+OUR_CMDLIST=$(echo ${OUR_CMDS} | sed -e 's/ /,/g')
 
 # query config in ~/.mblaze/profile
 MBLAZE=${MBLAZE-$HOME/.mblaze}
@@ -61,6 +65,9 @@ rl_cmd=$(mhdr -h MBReadLineCmd $profile)
 [ -z "${rl_cmd}" ] && rl_cmd=rl
 rl_hist=$(mhdr -h MBHistoryFile $profile)
 [ -n "${rl_hist}" ] && rl_cmd="${rl_cmd} -F ${rl_hist}"
+rl_maxhist=$(mhdr -h MBHistoryMax $profile)
+[ -n "${rl_maxhist}" ] && rl_cmd="${rl_cmd} -X ${rl_maxhist}"
+rl_cmd="${rl_cmd} -C ${OUR_CMDLIST} -D ${basedir}"
 
 # parse command-line args
 quiet_start=$(mhdr -h MBStartQuiet $profile)
@@ -198,8 +205,7 @@ special_args () {
 give_help () {
 	my cmds cmd
 	# get the list of commands for starters, alpha-sorted
-	cmds=$(grep '#\+' $SCRIPT | \
-		       sed -e 's/^.*#\+ //' | awk '{ print $1 }' | sort -u)
+	cmds=$OUR_CMDS
 	case $1 in
 		help)
 			# if they give us a specific command find help for it

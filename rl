@@ -6,6 +6,7 @@
 # requies Term::ReadLine::Gnu be installed
 
 use Modern::Perl;
+use Cwd;
 use Getopt::Long;
 use Pod::Usage;
 use Scalar::Util qw(looks_like_number);
@@ -16,14 +17,32 @@ package HistoryFile;
 use List::Util qw(max min);
 
 sub new { bless({file=>$_[1],@_},$_[0]) }
+sub trim {
+	my($self,@hist) = @_;
+	@hist = $self->{rl}->GetHistory() unless @hist;
+	my $maxh = $self->{max_history};
+	return @hist unless $maxh && scalar(@hist) > $maxh;
+	my $off = scalar(@hist) - $maxh;
+	return @hist[$off..$#hist];
+}
 sub append {
 	my($self,$input) = @_;
 	my $fn = $self->{file};
 	warn("# saving history => $fn\n") if $self->{verbose};
-	my $f = IO::File->new($fn, ">>:utf8")
-		or die "rl canot save $fn: $!";
-	$f->print("$input\n");
+	my @hist = $self->trim();
+	pop(@hist) if ($self->{max_history} &&
+		       scalar(@hist) == $self->{max_history});
+	push(@hist,$input);
+	my $f = IO::File->new("${fn}.tmp", ">:utf8")
+		or die "rl canot save ${fn}.tmp: $!";
+	$f->print("$_\n") foreach @hist;
 	$f->close();
+	die "unlink ${fn}.bak: $!"
+		if -f "${fn}.bak" && !unlink("${fn}.bak");
+	die "rename ${fn} ${fn}.bak: $!"
+		unless (!-f $fn) || rename($fn,"${fn}.bak");
+	die "rename ${fn}.tmp ${fn}: $!"
+		unless rename("${fn}.tmp",$fn);
 	return $self;
 }
 sub overwrite {
@@ -33,7 +52,7 @@ sub overwrite {
 	die "no rl!" unless $rl;
 	my $f = IO::File->new($fn, ">:utf8")
 		or die "rl cannot write $fn: $!";
-	$f->print("$_\n") foreach ($rl->GetHistory());
+	$f->print("$_\n") foreach ($self->trim());
 	$f->close();
 	return $self;
 }
@@ -48,12 +67,15 @@ sub load {
 	}
 	my $f = IO::File->new($history_file,"<:utf8")
 		or die "rl history file $history_file: $!\n";
+	my @lines;
 	while (defined(my $line = $f->getline())) {
 		$line =~ s/\s+$//;
 		next unless $line;
-		$rl->add_history($line);
+		push(@lines,$line);
 	}
 	$f->close();
+	@lines = $self->trim(@lines);
+	$rl->add_history($_) foreach @lines;
 	return $self;
 }
 sub list {
@@ -101,34 +123,68 @@ our %STYLES = (
 );
 
 MAIN: {
-	my($help,$no_history,$history_file,$verbose,$style);
+	my($help,$no_history,$history_file,$verbose,$style,
+	   $max_history,@completes,$chdir);
 	Getopt::Long::Configure("bundling");
 	GetOptions(
 		'help|?' => \$help,
 		'no-history|H' => \$no_history,
 		'history|F=s' => \$history_file,
+		'max-history|X=i' => \$max_history,
 		'style|S=s' => \$style,
+		'complete|C=s' => \@completes,
+		'chdir|D=s' => \$chdir,
 		'verbose|v+' => \$verbose,
 	) or pod2usage();
 	pod2usage(-verbose => 1+$verbose) if $help;
+	die "no such dir: $chdir\n" if $chdir && ! -d $chdir;
 	my $prog = shift(@ARGV) || 'rl';
 	my $prompt = join(" ",@ARGV) || "${prog}> ";
+	$0 = "rl:${prog}";
+	$0 .= " ${prompt}" if $verbose;
+	if ($prog ne 'rl') {
+		$prompt = "[${prog}]${prompt}";
+	}
 	my $rl = Term::ReadLine->new($prog);
 	$style //= 'plain';
 	pod2usage(-msg => "invalid style: $style")
 		unless exists $STYLES{$style};
+	# style
 	my $ornaments = $STYLES{$style};
 	$rl->ornaments($ornaments);
+	# history
 	$history_file //= join("/",$ENV{HOME},".${prog}.history")
 		unless $no_history;
 	warn("# $prog history file: $history_file\n") if $verbose;
 	my $history =
-		HistoryFile->new($history_file,rl=>$rl,verbose=>$verbose)
-		->load() if !$no_history && $history_file;
+		HistoryFile->new(
+			$history_file,rl=>$rl,verbose=>$verbose,
+			max_history=>$max_history,
+		)->load() if !$no_history && $history_file;
+	# completion
+	my $attribs = $rl->Attribs;
+	if (@completes) {
+		@completes = map { split(/,/,$_) } @completes;
+		my $attempt_cmd = sub {
+			my($text,$line,$start,$end) = @_;
+			if (substr($line,0,$start) =~ /^\s*$/) {
+				return $rl->completion_matches(
+					$text,
+					$attribs->{list_completion_function})
+			} else {
+				return ();
+			}
+		};
+		$attribs->{attempted_completion_function} = $attempt_cmd;
+		$attribs->{completion_word} = \@completes;
+	}
 	my $xit = undef;
 	my $input;
+	my $here = getcwd();
 	do {
+		chdir($chdir) if $chdir;
 		$input = $rl->readline($prompt);
+		chdir($here) if $chdir;
 		if (!defined($input)) {
 			$xit = 1;
 		} else {
@@ -144,7 +200,7 @@ MAIN: {
 					$history->list(int($args[0]));
 				} elsif ($args[0] eq 'clear') {
 					shift(@args);
-					$history->clear(@args);
+					$history->clear(shift(@args));
 				} elsif ($args[0] =~ /^\//) {
 					$arg =~ s/(^\/|\/$)//gs;
 					$history->grep($arg);
@@ -178,7 +234,10 @@ Options:
     --verbose    -v        spew messages about loading/saving history
     --no-history -H        do not load/save history this invocation
     --history    -F file   load/save history from/to this file
+    --max-history -X int   maximum history size in lines (def: none)
     --style      -S style  one of: bold, underline or plain (def: plain)
+    --complete   -C word   add word to completion list (more than once)
+    --chdir       -D dir   chdir to dir when reading input (for fn complete)
 
 =head1 DESCRIPTION
 
