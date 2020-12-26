@@ -3,7 +3,7 @@
 # rl - call GNU readline w/history saving
 
 # simplest way to add command-line editing to mb portably
-# requies Term::ReadLine::Gnu be installed
+# OpenBSD deps: p5-Modern-Perl, p5-Pod-Usage, p5-Term-ReadLine-Gnu
 
 use Modern::Perl;
 use Cwd;
@@ -140,11 +140,10 @@ MAIN: {
 	die "no such dir: $chdir\n" if $chdir && ! -d $chdir;
 	my $prog = shift(@ARGV) || 'rl';
 	my $prompt = join(" ",@ARGV) || "${prog}> ";
-	$0 = "rl:${prog}";
-	$0 .= " ${prompt}" if $verbose;
-	if ($prog ne 'rl') {
-		$prompt = "[${prog}]${prompt}";
-	}
+	$prompt = "[${prog}] ${prompt}" if $prog ne 'rl';
+	my $procname = "rl:${prog}";
+	$procname .= " ${prompt}" if $verbose;
+	$0 = $procname;
 	my $rl = Term::ReadLine->new($prog);
 	$style //= 'plain';
 	pod2usage(-msg => "invalid style: $style")
@@ -155,7 +154,8 @@ MAIN: {
 	# history
 	$history_file //= join("/",$ENV{HOME},".${prog}.history")
 		unless $no_history;
-	warn("# $prog history file: $history_file\n") if $verbose;
+	warn("# $prog history file: $history_file\n")
+		if $history_file && $verbose;
 	my $history =
 		HistoryFile->new(
 			$history_file,rl=>$rl,verbose=>$verbose,
@@ -211,7 +211,7 @@ MAIN: {
 			} # else ignore blank lines
 		}
 	} while (!defined($xit));
-	$input =~ s/\/+// if $input;
+	$input =~ s/\/+$// if $input;
 	say $input if defined $input;
 	exit($xit);
 }
@@ -226,7 +226,7 @@ rl - read line with editing and history
 
 =head1 SYNOPSIS
 
-rl [-vH] [-F histfile] progname [prompt...]
+rl [-vH] [-F histfile] [-X maxhist] [-S style] [-C word[,...]] [-D dir] progname [prompt...]
 
 Options:
 
@@ -240,18 +240,72 @@ Options:
     --chdir       -D dir   chdir to dir when reading input (for fn complete)
 
 =head1 DESCRIPTION
+	
 
-Read a line from the terminal w/command line editing and history
-support.  By default the command history will go in
+Read a line from the terminal w/command line editing, completion and
+history support.  By default the command history will go in
 C<~/.progname.history>, e.g. if you invoke us like so:
 
-    rl mb 'INBOX*> '
+    rl prog 'INBOX*> '
 
-history will be restored/saved from/to C<~/.mb.history>.  Whatever
+history will be restored/saved from/to C<~/.prog.history>.  Whatever
 line we finally read is spit out on stdout.
 
-We handle inputs that look like C<.history ...args...> ourselves
-and don't print them on stdout for our caller.  A summary:
+If no C<--complete> options are given filename completion will be done
+by default; you can control which directory to complete relative to
+with the C<--chdir> option.  If any C<--complete> options are given,
+the total set of words (after splitting on comma) will be treated as
+commands that should be the initial word of any line.  Words beyond
+the first will use filename completion, which will also be used as the
+fall-back if no matches the initial input.
+
+Command-line Options:
+
+=over 4
+
+=item * C<--help>, C<-?>
+
+Print some part of this manual.
+
+=item * C<--verbose>, C<-v>
+
+Combined with C<--help> prints the whole manual.
+Otherwise, enables debug output on stderr.
+
+=item * C<-no-history>, C<-H>
+
+Do not load/save history.
+
+=item *  C<--history=file>, C<-F file> 
+
+Load/save history from/to this file.
+
+=item * C<--max-history=int>, <-X int>
+
+Maximum history size in lines (def: none)
+
+=item * C<--style=style>,  C<-S style>
+
+Style to apply to the prompt.  One of: bold, underline or plain (def:
+plain).
+
+=item * C<--complete=word[,word...]>, C<-C word[,word..]>
+
+Add word(s) to completion list.  Can be given more than once and each
+option's value is also treated as a comma-separated list, so C<-C one
+-C two> and C<-C one,two> are the same.
+
+=item * C<--chdir=dir>, C<-D dir>
+
+Chdir to dir when reading input, so that filename completion has the
+deswired effect.
+
+=back
+
+We handle input lines that start with a period ourselves.
+They look like C<.command [args...]>.
+
+There is currently one internal command, C<.history>.
 
 =over 4
 
