@@ -136,18 +136,21 @@ MAIN: {
 		'chdir|D=s' => \$chdir,
 		'verbose|v+' => \$verbose,
 	) or pod2usage();
+	$verbose //= 0;
 	pod2usage(-verbose => 1+$verbose) if $help;
-	die "no such dir: $chdir\n" if $chdir && ! -d $chdir;
+	$style //= 'plain';
+	pod2usage(-msg => "invalid style: $style")
+		unless exists $STYLES{$style};
+	die "no such dir: $chdir\n"
+		if $chdir && ! -d $chdir;
 	my $prog = shift(@ARGV) || 'rl';
-	my $prompt = join(" ",@ARGV) || "${prog}> ";
+	my $prompt = join(" ",@ARGV) || "> ";
 	$prompt = "[${prog}] ${prompt}" if $prog ne 'rl';
+	# set process name for ps(1)
 	my $procname = "rl:${prog}";
 	$procname .= " ${prompt}" if $verbose;
 	$0 = $procname;
 	my $rl = Term::ReadLine->new($prog);
-	$style //= 'plain';
-	pod2usage(-msg => "invalid style: $style")
-		unless exists $STYLES{$style};
 	# style
 	my $ornaments = $STYLES{$style};
 	$rl->ornaments($ornaments);
@@ -181,6 +184,7 @@ MAIN: {
 	my $input;
 	my $here = getcwd();
 	do {
+	      INPUT:
 		chdir($chdir) if $chdir;
 		$input = $rl->readline($prompt);
 		chdir($here) if $chdir;
@@ -188,8 +192,11 @@ MAIN: {
 			$xit = 1;
 		} else {
 			chomp($input);
-			$history->append($input) if $history && $input;
-			if ($input && $input =~ /^\.h\w+(|\s+(\S.*))$/) {
+			goto INPUT unless $input;
+			$history->append($input) if $history;
+			if ($input !~ /^\.h\w+(|\s+(\S.*))$/) {
+				$xit = 0;
+			} else {
 				my $arg = $1;
 				$arg =~ s/(^\s+|\s+$)//gs;
 				my @args = split(/\s+/,$arg);
@@ -206,13 +213,13 @@ MAIN: {
 				} else {
 					warn("rl: .history? @args\n");
 				}
-			} elsif ($input) {
-				$xit = 0;
-			} # else ignore blank lines
+			}
 		}
 	} while (!defined($xit));
-	$input =~ s/\/+$// if $input;
-	say $input if defined $input;
+	if (defined($input)) {
+		$input =~ s/\/+$//;
+		say $input;
+	}
 	exit($xit);
 }
 
@@ -222,7 +229,7 @@ __END__
 
 =head1 NAME
 
-rl - read line with editing and history
+rl - read a line from tty with editing and history
 
 =head1 SYNOPSIS
 
@@ -257,7 +264,7 @@ with the C<--chdir> option.  If any C<--complete> options are given,
 the total set of words (after splitting on comma) will be treated as
 commands that should be the initial word of any line.  Words beyond
 the first will use filename completion, which will also be used as the
-fall-back if no matches the initial input.
+fall-back if no completion word matches the initial input.
 
 Command-line Options:
 

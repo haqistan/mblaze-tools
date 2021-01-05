@@ -61,6 +61,8 @@ mairix=$(mhdr -h MairixCmd $profile)
 index_opts=$(mhdr -h MairixIndexOpts $profile)
 CMD=$(mhdr -h MBDefaultCmd $profile)
 [ -z "$CMD" ] && CMD=minbox
+shell_cmd=$(mhdr -h ShellEscapeCmd $profile)
+[ -z "${shell_cmd}" ] && shell_cmd=${SHELL-/bin/sh}
 rl_cmd=$(mhdr -h MBReadLineCmd $profile)
 rl_from_profile=0
 [ -n "${rl_cmd}" ] && rl_from_profile=1
@@ -149,7 +151,7 @@ rescan () {
 	[ -n "${CMD}" ] && {
 		if [ ${nothing} = inbox ]; then
 			FOLDER=${INBOX-$inbox_name}
-		elif [ ${nothing} = open -o ${nothing} = cd ]; then
+		elif [ ${nothing} = cd ]; then
 			[ -z "${afterargs}" ] && afterargs=${INBOX-$inbox_name}
 			FOLDER=${afterargs}
 		fi
@@ -360,7 +362,7 @@ process_command () {
 		quit)	#+ quit - exit program
 			exit 0
 			;;
-		list|ls|open|cd|clear|inbox) #+ list [slice] - (re)list current folder
+		ls|cd|inbox)
 			#+ ls [slice] - (re)list current folder
 			#+ ls if the optional slice is specified, only that slice of the
 			#+ ls folder (new or cur) will be displayed. if it is a positive
@@ -369,10 +371,8 @@ process_command () {
 			#+ ls of numbers separated by a dash, e.g. 1-20, then that range
 			#+ ls of messages is displayed. the setting of a slice is sticky,
 			#+ ls meaning it is remembered and carries over to other commands
-			#+ ls c.f. like new and all.
-			#+ open folder - switch to different folder
+			#+ ls like new and all.
 			#+ cd folder - switch to different folder
-			#+ clear - re-list current folder
 			#+ inbox - switch to in-box and list
 			case "${afterargs}" in
 				[0-9]*)
@@ -545,7 +545,8 @@ process_command () {
 		!*)	#+ ! cmd ... - run a shell command
 			#+ ! this is an ancient unix tradition
 			nothing=$(echo ${nothing} | sed -e 's/^!//')
-			$SHELL -c "${nothing} ${afterargs}"
+			echo ${shell_cmd} -c "${nothing} ${afterargs}"
+			${shell_cmd} -c "${nothing} ${afterargs}"
 			return
 			;;
 	esac
@@ -591,15 +592,18 @@ if [ $# -gt 0 ]; then
 	[ $only_one -ne 0 ] && exit 0
 fi
 
-trap 'spew_status; echo "(type quit to quit or ^C)"' QUIT
-trap 'spew_status; echo QUITTING; quitting=1' INT TERM
+trap 'spew_status; echo "("quit" or EOF to quit)"' QUIT INT
+trap 'spew_status; echo "[TERM]"; quitting=1' TERM
 
 quitting=0
 while [ $quitting -eq 0 ]; do
 	line=$(${rl_cmd} mb "${FOLDER}${new}$(slice)> ")
-	if [ $? -ne 0 ]; then
-		echo '  [EOF]'
-		quitting=1
+	status=$?
+	if [ $status -ne 0 ]; then
+		if [ $status -lt 100 ]; then
+			echo "  [QUIT]"
+			quitting=1
+		fi
 	elif [ -n "${line}" ]; then
 		set -- $line
 		process_command $*
