@@ -74,15 +74,16 @@ if [ $rl_from_profile -eq 0 ]; then
 	[ -n "${rl_maxhist}" ] && rl_cmd="${rl_cmd} -X ${rl_maxhist}"
 fi
 rl_cmd="${rl_cmd} -C ${OUR_CMDLIST} -D ${basedir}"
-
-# parse command-line args
 quiet_start=$(mhdr -h MBStartQuiet $profile)
 [ -z "${quiet_start}" ] && quiet_start=0
+
+# parse command-line args
+VERBOSE=0
 f=
 only_one=0
 args=$(getopt nq1 $*)
 if [ $? -ne 0 ]; then
-	echo usage: $(basename $SCRIPT) [-nq1] [folder [cmd...]]
+	echo usage: $(basename $SCRIPT) [-nqv1] [folder [cmd...]]
 	exit 1
 fi
 set -- $args
@@ -91,6 +92,7 @@ while [ $# -ne 0 ]; do
 		-1) only_one=1; shift ;;
 		-n) CMD=mnewbox; shift ;;
 		-q) quiet_start=1; shift ;;
+		-v) VERBOSE=1; shift ;;
 		--) shift; break ;;
 	esac
 done
@@ -105,6 +107,12 @@ fi
 [ -z "${FOLDER}" ] && FOLDER=${INBOX-$inbox_name}
 new=
 [ "${CMD}" = "mnewbox" ] && new='*'
+
+verbose () {
+	if [ $VERBOSE -ne 0 ]; then
+		echo $@
+	fi
+}
 
 export FOLDER # for subprocesses
 
@@ -303,12 +311,17 @@ process_command () {
 			#+ cp your MaildirBase config setting.
 			#+ cp If dest-folder does not end in /new or /cur it
 			#+ cp is assumed you meant /new.
-			cmd=m${nothing}
+			if [ "$nothing" = "cp" ]; then
+				cmd="mrefile -k"
+			else
+				cmd=mrefile
+			fi
 			afterargs=$(set_args ${afterargs})
 			[ -z "${afterargs}" ] && {
 				usage "${nothing} [msgno] dest-folder"
 				return
 			}
+			afterargs="${basedir}/${afterargs}"
 			do_mscan=mscan
 			;;
 		rm)	#+ rm msgno [msgno...] - remove indicated messages
@@ -540,7 +553,6 @@ process_command () {
 			give_help brief
 			return
 			;;
-
 		.) ;;	#+ . - a single dot displays the current message
 		!*)	#+ ! cmd ... - run a shell command
 			#+ ! this is an ancient unix tradition
@@ -553,7 +565,8 @@ process_command () {
 	msgno=$(tmux show-buffer)
 	if [ -n "${msgno}" ]; then
 		f=$(mpick ${msgno} 2>/dev/null)
-		if [ -n $f ]; then
+		verbose "[msgno: ${msgno} .. $f]"
+		if [ -n "$f" ]; then
 			echo ${cmd} ${beforeargs} ${msgno} ${afterargs}
 			if [ -n "${do_mscan}" ]; then
 				${cmd} ${beforeargs} ${msgno} ${afterargs} | \

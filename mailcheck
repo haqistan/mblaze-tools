@@ -28,7 +28,7 @@ ts () {
 }
 
 shleep () {
-	sleep $1 & sleeper_pid=$!
+	sleep $1 >/dev/null 2>&1 & sleeper_pid=$!
 	echo $(ts) sleeping ...
 	wait $sleeper_pid 2>/dev/null
 	[ $? -ne 0 ] && echo $(ts) wakeup
@@ -36,7 +36,9 @@ shleep () {
 }
 
 wakeup () {
-	[ $sleeper_pid -ne 0 ] && kill $sleeper_pid && wait $sleeper_pid
+	[ $sleeper_pid -ne 0 ] && \
+		kill $sleeper_pid >/dev/null 2>&1 && \
+		wait $sleeper_pid
 }
 
 mailcheck () {
