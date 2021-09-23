@@ -4,12 +4,46 @@
 # sometimes so it must conform itself to its current size to look
 # respectable.
 
-alias my=typeset
-# pirate version:
-# alias me=typeset
+ORIG_CMD="$0 $*"
 
-sleep=$1
+MBLAZE=${MBLAZE-$HOME/.mblaze}
+profile="$MBLAZE/profile"
+
+date_fmt=$(mhdr -h FolderCheckDateFmt $profile)
+[ -z "$date_fmt" ] && date_fmt="%Y-%m-%d %H:%M"
+sleep=$(mhdr -h FolderCheckSleep $profile)
 [ -z "$sleep" ] && sleep=30
+default_sleep=$sleep
+
+TEMPFILES=""
+
+if [ $# -gt 0 ]; then
+	sleep=$1
+	shift
+fi
+
+################################################
+
+remember_tempfile () {
+	local fn=$1
+	case $TEMPFILES in
+		*${fn}*) ;;
+		*) TEMPFILES="${TEMPFILES} $fn" ;;
+	esac
+}
+
+forget_tempfile () {
+	local fn=$1
+	TEMPFILES=$(echo $TEMPFILES | perl -lpe "s,${fn},,gs; s,^\s+,,; s,\s+\$,,;")
+}
+
+ts () {
+	date +"$date_fmt"
+}
+
+debug () {
+	echo "$(ts) DEBUG: $*" 1>&2
+}
 
 stty_size_field () {
 	stty -a | perl -lne '/(\d+)\s+'$1'/ && print qq|$1\n|'
@@ -24,7 +58,7 @@ tty_cols () {
 }
 
 center_msg () {
-	my x y str mid_len
+	local x y str mid_len
 	str="$*"
 	mid_len=${#str}
 	mid_len=$(expr $mid_len / 2)
@@ -40,47 +74,152 @@ center_msg () {
 	tput sgr0 civis
 }
 
+count_file_lines () {
+	wc -l $1 | awk '{print $1}'
+}
+
+# ticker-tape-style file display in a potentially small window
+# if the output of rs doesn't fit nicely in the window, we
+# scroll it slowly down and then back up.
+# note: all this tput'ery works in a small tmux pane on OpenBSD, which
+# is where I run this... YMMV
+
+had=0
+display_file () {
+	local fn=$1 cols=$(tty_cols) rows=$(tty_rows) n=0 rs nlines thee_sleep=$sleep
+	[ -z "$cols" ] && cols=$COLUMNS
+	[ -z "$rows" ] && rows=$ROWS
+	tput clear
+	nlines=$(count_file_lines $fn)
+	if [ $nlines -eq 0 ]; then
+		center_msg '~no mail~'
+		had=0
+		return 0
+	fi
+	had=1
+	rs=${fn}.rs.txt
+	rs -e -w$cols <$fn >$rs
+	remember_tempfile $rs
+	n=$(count_file_lines $rs)
+	# suss out title
+	local title="~ $nlines w/new mail ~" mid_len x
+	mid_len=${#title}
+	mid_len=$(expr $mid_len / 2)
+	x=$(expr $cols / 2)
+	x=$(expr $x - $mid_len)
+	if [ $x -gt 0 ]; then
+		x=$(expr $x - 1)
+		title=$(printf %${x}s%s " " "$title")
+	fi
+	# looks purty
+	tput bold
+	echo "$title"
+	# sgr0=cancel effects(bold), sc=save position
+	tput sgr0 sc
+	if [ $n -lt $(expr $rows - 1) ]; then
+		cat $rs
+	else
+		local rm1=$(expr $rows - 2) r=0
+		local last=$(expr $n - $rm1)
+		# scroll the list forward slowly
+		while [ $r -le $last ]; do
+			# rc=return to saved position
+			# ed=clear to end of screen
+			tput rc ed
+			if [ $r -eq 0 ]; then
+				head -$rm1 $rs
+			else
+				sed -e "1,${r}d" <$rs | head -$rm1
+			fi
+			sleep 2
+			thee_sleep=$(expr $thee_sleep - 2)
+			r=$(expr $r + 1)
+		done
+		sleep 1 # pause between
+		thee_sleep=$(expr $thee_sleep - 1)
+		r=$(expr $r - 1)
+		while [ $r -ge 0 ]; do
+			tput rc ed
+			if [ $r -eq 0 ]; then
+				head -$rm1 $rs
+			else
+				sed -e "1,${r}d" <$rs | head -$rm1
+			fi
+			sleep 2
+			thee_sleep=$(expr $thee_sleep - 2)
+			r=$(expr $r - 1)
+		done
+		case $thee_sleep in
+			-*) thee_sleep="" ;;
+			*)
+				if [ $thee_sleep -gt 5 ]; then
+					thee_sleep=2
+				fi
+				;;
+		esac
+	fi
+	forget_tempfile $rs
+	rm -f $rs
+	sleep=$thee_sleep
+}
+
 check () {
-	my cols had=0 tmpf=$1
+	local cols tmpf=$1
 	cols=$(tty_cols)
 	[ -z "$cols" ] && cols=$COLUMNS
 	[ $had -eq 0 ] && center_msg '~looking...~'
 	mnewdirs > ${tmpf}
 	if [ ! -s "$tmpf" ]; then
+		tput clear
 		center_msg '~no unread mail~'
 		had=0
+		sleep=$default_sleep
 	else
-		[ $had -eq 0 ] && tput clear
-		cat ${tmpf} | rs -e -w$cols
-		had=1
+		display_file $tmpf
 	fi
 }
 
 sleeper_pid=0
 
 shleep () {
-	sleep $1 & sleeper_pid=$!
+	local secs=$1
+	sleep $secs & sleeper_pid=$!
 	wait $sleeper_pid 2>/dev/null
 	sleeper_pid=0
 }
 
 wakeup () {
-	[ $sleeper_pid -ne 0 ] && kill $sleeper_pid && wait $sleeper_pid
+	[ $sleeper_pid -ne 0 ] && \
+		kill $sleeper_pid >/dev/null 2>&1 && \
+		wait $sleeper_pid
+	sleep=0
 }
 
-tmpf=${TMPDIR-/tmp}/foldercheck.$$
+restart () {
+	tput clear sgr0 cvvis
+	exec $ORIG_CMD
+}
 
 interrupted () {
 	wakeup
+	if [ -n "$TEMPFILES" ]; then
+		echo "$(ts) cleaning up tempfiles: $TEMPFILES"
+		rm -rf $TEMPFILES
+	fi
 	rm -f ${tmpf}
-	reset
+	tput sgr0 cvvis
+	echo ''
+	echo "$(ts) exiting ..."
 	exit 1
 }
 
-trap 'interrupted' INT TERM QUIT
-trap 'wakeup' INFO WINCH
+trap 'interrupted' INT TERM
+trap 'wakeup; restart' INFO WINCH QUIT
+
+tmpf=${TMPDIR-/tmp}/foldercheck.$$
 
 while true; do
-	check ${tmpf}
-	shleep ${sleep}
+	check $tmpf
+	[[ -n "$sleep" ]] && shleep $sleep
+	sleep=$default_sleep
 done
