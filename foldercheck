@@ -5,7 +5,6 @@
 # respectable.
 
 ORIG_CMD="$0 $*"
-
 MBLAZE=${MBLAZE-$HOME/.mblaze}
 profile="$MBLAZE/profile"
 
@@ -78,6 +77,10 @@ count_file_lines () {
 	wc -l $1 | awk '{print $1}'
 }
 
+squish_last_newline () {
+	perl -e 'undef($/);$x=<STDIN>;$x=~s/\n+$//;print $x'
+}
+
 # ticker-tape-style file display in a potentially small window
 # if the output of rs doesn't fit nicely in the window, we
 # scroll it slowly down and then back up.
@@ -117,33 +120,41 @@ display_file () {
 	# sgr0=cancel effects(bold), sc=save position
 	tput sgr0 sc
 	if [ $n -lt $(expr $rows - 1) ]; then
+		# done!
 		cat $rs
 	else
-		local rm1=$(expr $rows - 2) r=0
+		# scrolly bits
+		local rm1=$(expr $rows - 1) r=0
 		local last=$(expr $n - $rm1)
-		# scroll the list forward slowly
+		# first scroll the list forward slowly
 		while [ $r -le $last ]; do
 			# rc=return to saved position
 			# ed=clear to end of screen
 			tput rc ed
 			if [ $r -eq 0 ]; then
-				head -$rm1 $rs
+				head -$rm1 $rs | squish_last_newline
 			else
-				sed -e "1,${r}d" <$rs | head -$rm1
+				sed -e "1,${r}d" <$rs | head -$rm1 | \
+					squish_last_newline
 			fi
-			sleep 2
+			sleep 2 # this is the "slowly" part
 			thee_sleep=$(expr $thee_sleep - 2)
 			r=$(expr $r + 1)
 		done
 		sleep 1 # pause between
+		# now do it backwards
 		thee_sleep=$(expr $thee_sleep - 1)
 		r=$(expr $r - 1)
+		if [ $r -gt 0 ]; then
+			r=$(expr $r - 1)
+		fi
 		while [ $r -ge 0 ]; do
 			tput rc ed
 			if [ $r -eq 0 ]; then
-				head -$rm1 $rs
+				head -$rm1 $rs | squish_last_newline
 			else
-				sed -e "1,${r}d" <$rs | head -$rm1
+				sed -e "1,${r}d" <$rs | head -$rm1 | \
+					squish_last_newline
 			fi
 			sleep 2
 			thee_sleep=$(expr $thee_sleep - 2)
@@ -213,7 +224,9 @@ interrupted () {
 	exit 1
 }
 
+# ^C or SIGTERM kills us dead
 trap 'interrupted' INT TERM
+# ^T, ^\ or resizing the pane -> restart
 trap 'wakeup; restart' INFO WINCH QUIT
 
 tmpf=${TMPDIR-/tmp}/foldercheck.$$
