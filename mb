@@ -274,11 +274,12 @@ process_command () {
 			${nothing} ${afterargs}
 			return
 			;;
-		mime|extract|headers) #+ mime [msgno] - display mime structure of msg
+		mime|extract|headers|xcat) #+ mime [msgno] - display mime structure of msg
 			#+ extract [msgno] part# - extract given part of msgno
 			#+ extract if no msgno is given and part# is a valid
 			#+ extract attachment# for the current message, a
 			#+ extract single numeric arg is taken to be att#
+			#+ xcat [msgno] part# - like extract but dump to stdout
 			#+ headers [opts] [msgno] - dump headers of msg to stdout
 			#+ headers other options to mshow(1) can precede the
 			#+ headers optional msgno, so >headers -H   will show
@@ -290,6 +291,10 @@ process_command () {
 					;;
 				extract)
 					cmd="mshow -x"
+					afterargs=$(special_args ${afterargs})
+					;;
+				xcat)
+					cmd="mshow -O"
 					afterargs=$(special_args ${afterargs})
 					;;
 				headers)
@@ -333,6 +338,9 @@ process_command () {
 				echo mrm ${afterargs}
 				mrm ${afterargs}
 			fi
+			return
+			;;
+		flag)	#+ flag [options] msgs - foo
 			return
 			;;
 		inc)	#+ inc [all|new] - incorporate new mail into cur (mark all read in folder)

@@ -132,11 +132,10 @@ display_file () {
 			# ed=clear to end of screen
 			tput rc ed
 			if [ $r -eq 0 ]; then
-				head -$rm1 $rs | squish_last_newline
+				head -$rm1 $rs
 			else
-				sed -e "1,${r}d" <$rs | head -$rm1 | \
-					squish_last_newline
-			fi
+				sed -e "1,${r}d" <$rs | head -$rm1
+			fi | squish_last_newline
 			sleep 2 # this is the "slowly" part
 			thee_sleep=$(expr $thee_sleep - 2)
 			r=$(expr $r + 1)
@@ -151,17 +150,16 @@ display_file () {
 		while [ $r -ge 0 ]; do
 			tput rc ed
 			if [ $r -eq 0 ]; then
-				head -$rm1 $rs | squish_last_newline
+				head -$rm1 $rs
 			else
-				sed -e "1,${r}d" <$rs | head -$rm1 | \
-					squish_last_newline
-			fi
+				sed -e "1,${r}d" <$rs | head -$rm1
+			fi | squish_last_newline
 			sleep 2
 			thee_sleep=$(expr $thee_sleep - 2)
 			r=$(expr $r - 1)
 		done
 		case $thee_sleep in
-			-*) thee_sleep="" ;;
+			-*) thee_sleep="" ;; # negative sleep is a thing
 			*)
 				if [ $thee_sleep -gt 5 ]; then
 					thee_sleep=2
