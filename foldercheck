@@ -13,12 +13,19 @@ date_fmt=$(mhdr -h FolderCheckDateFmt $profile)
 sleep=$(mhdr -h FolderCheckSleep $profile)
 [ -z "$sleep" ] && sleep=30
 default_sleep=$sleep
+SLOWLY=$(mhdr -h FolderCheckScrollSleep $profile)
+[ -z "$SLOWLY" ] && SLOWLY=2
 
 TEMPFILES=""
 
 if [ $# -gt 0 ]; then
 	sleep=$1
 	shift
+	if [ $# -gt 0 ]; then
+		SLOWLY=$1
+		shift
+	fi
+	echo "[sleep=$sleep SLOWLY=$SLOWLY]" 1>&2
 fi
 
 ################################################
@@ -29,6 +36,10 @@ remember_tempfile () {
 		*${fn}*) ;;
 		*) TEMPFILES="${TEMPFILES} $fn" ;;
 	esac
+}
+
+perlx () {
+	perl -Mv5.10 -e "say $*"
 }
 
 forget_tempfile () {
@@ -136,13 +147,13 @@ display_file () {
 			else
 				sed -e "1,${r}d" <$rs | head -$rm1
 			fi | squish_last_newline
-			sleep 2 # this is the "slowly" part
-			thee_sleep=$(expr $thee_sleep - 2)
+			sleep $SLOWLY
+			thee_sleep=$(perlx "$thee_sleep - $SLOWLY")
 			r=$(expr $r + 1)
 		done
 		sleep 1 # pause between
 		# now do it backwards
-		thee_sleep=$(expr $thee_sleep - 1)
+		thee_sleep=$(perlx "$thee_sleep - 1")
 		r=$(expr $r - 1)
 		if [ $r -gt 0 ]; then
 			r=$(expr $r - 1)
@@ -154,17 +165,13 @@ display_file () {
 			else
 				sed -e "1,${r}d" <$rs | head -$rm1
 			fi | squish_last_newline
-			sleep 2
-			thee_sleep=$(expr $thee_sleep - 2)
+			sleep $SLOWLY
+			thee_sleep=$(perlx "$thee_sleep - $SLOWLY")
 			r=$(expr $r - 1)
 		done
 		case $thee_sleep in
 			-*) thee_sleep="" ;; # negative sleep is a thing
-			*)
-				if [ $thee_sleep -gt 5 ]; then
-					thee_sleep=2
-				fi
-				;;
+			*)  ;;
 		esac
 	fi
 	forget_tempfile $rs
