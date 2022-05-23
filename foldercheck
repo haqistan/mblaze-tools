@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/bin/ksh
 
 # I run this in a small pane in my tmux mail window.  I resize it
 # sometimes so it must conform itself to its current size to look
@@ -16,11 +16,129 @@ sleep=$(mhdr -h FolderCheckSleep $profile)
 default_sleep=$sleep
 
 TEMPFILES=""
+CUR_MSG=""
+CUR_MSG_Y=""
+siginfo=""
 
 if [ $# -gt 0 ]; then
 	sleep=$1
 	shift
 fi
+
+# bsd polyfill
+case $(uname) in
+	*BSD)	netstat="netstat -na -f inet"
+		[ -z "$siginfo" ] && siginfo="INFO"
+		stty_size_field () {
+			stty -a | perl -lne '/(\d+)\s+'$1'/ && print $1'
+		}
+		colorer=color_a
+		setaf=setaf
+		setab=setab
+		;;
+	*)	netstat="netstat -na4"
+		stty_size_field () {
+			stty -a | perl -lne '/'$1'\s+(\d+);/ && print $1'
+		}
+		colorer=color_
+		setaf=setf
+		setab=setb
+		;;
+esac
+cursor_invis=true
+cursor_vis=true
+if tput civis >/dev/null; then
+	cursor_invis="tput civis"
+	cursor_vis="tput cnorm"
+fi
+
+tty_rows () {
+	echo $(stty_size_field rows)
+}
+
+tty_cols () {
+	echo $(stty_size_field columns)
+}
+
+mung_colors () {
+	local bg=$1
+	if [ -n "$bg" ]; then
+		tput $setaf $fg
+		tput $setab $bg
+	fi
+}
+
+center_msg () {
+	local str="$*" w=$(tty_cols) h=$(tty_rows) x y mid_len
+	if [ -n "$CUR_MSG" ]; then
+		# erase previous message
+		tput cup $CUR_MSG_Y 0
+		echo -n "$(blanks $w)"
+	fi
+	mid_len=${#str}
+	mid_len=$(expr $mid_len / 2)
+	y=$(expr $h / 2)
+	if [ $h -gt 3 ]; then
+		y=$(expr $y - 1)
+	fi
+	x=$(expr $w / 2)
+	x=$(expr $x - $mid_len)
+	tput cup $y $x
+	tput bold
+	echo -n "$str"
+	tput sgr0
+	CUR_MSG="$str"
+	CUR_MSG_Y=$y
+}
+
+color_a () {
+	# N.B. this is for seta[fb] c.f. terminfo(5)
+	local c n=$(echo $1 | tr A-Z a-z)
+	case $n in
+		black)	c=0 ;;
+		red)	c=1 ;;
+		green)	c=2 ;;
+		yellow) c=3 ;;
+		blue)	c=4 ;;
+		magenta)c=5 ;;
+		cyan)	c=6 ;;
+		white)	c=7 ;;
+		*) die "wtf color is $1 ?" ;;
+	esac
+	echo $c
+}
+
+color_ () {
+	# N.B. this is for set[fb] c.f. terminfo(5)
+	local c n=$(echo $1 | tr A-Z a-z)
+	case $n in
+		black)	c=0 ;;
+		blue)	c=1 ;;
+		green)	c=2 ;;
+		cyan)	c=3 ;;
+		red)	c=4 ;;
+		magenta)c=5 ;;
+		yellow)	c=6 ;;
+		white)	c=7 ;;
+		*) die "wtf color is $1 ?" ;;
+	esac
+	echo $c
+}
+
+blanks () {
+	perl -e "print ' ' x $1"
+}
+
+blank_screen () {
+	local rows=$(tty_rows) cols=$(tty_cols) bgc=$1
+	local one_row=$(blanks $cols) row=0
+#	debug "blank_screen colorer $colorer $1: $setaf $fg $setab $bg"
+	tput clear
+	while [ $row -lt $rows ]; do
+		echo -n "$one_row"
+		row=$(expr 1 + $row)
+	done
+}
 
 ################################################
 
@@ -43,35 +161,6 @@ ts () {
 
 debug () {
 	echo "$(ts) DEBUG: $*" 1>&2
-}
-
-stty_size_field () {
-	stty -a | perl -lne '/(\d+)\s+'$1'/ && print qq|$1\n|'
-}
-
-tty_rows () {
-	echo $(stty_size_field rows)
-}
-
-tty_cols () {
-	echo $(stty_size_field columns)
-}
-
-center_msg () {
-	local x y str mid_len
-	str="$*"
-	mid_len=${#str}
-	mid_len=$(expr $mid_len / 2)
-	x=$(tty_cols)
-	y=$(tty_rows)
-	y=$(expr $y / 2)
-	y=$(expr $y - 1)
-	x=$(expr $x / 2)
-	x=$(expr $x - $mid_len)
-	tput clear
-	tput cup $y $x bold
-	echo -n $str
-	tput sgr0 civis
 }
 
 count_file_lines () {
@@ -163,11 +252,18 @@ display_file () {
 	sleep=$thee_sleep
 }
 
+first_time=1
 check () {
 	local cols tmpf=$1
 	cols=$(tty_cols)
 	[ -z "$cols" ] && cols=$COLUMNS
-	[ $had -eq 0 ] && center_msg '~looking...~'
+	if [ $had -eq 0 ]; then
+		if [ $first_time -eq 1 ]; then
+			blank_screen
+			first_time=0
+		fi
+		center_msg '~looking...~'
+	fi
 	mnewdirs > ${tmpf}
 	if [ ! -s "$tmpf" ]; then
 		tput clear
@@ -214,7 +310,8 @@ interrupted () {
 }
 
 trap 'interrupted' INT TERM
-trap 'wakeup; restart' INFO WINCH QUIT
+trap 'wakeup; restart' WINCH QUIT
+[ -n "$SIGINFO" ] && trap 'wakeup; restart' $SIGINFO
 
 tmpf=${TMPDIR-/tmp}/foldercheck.$$
 
