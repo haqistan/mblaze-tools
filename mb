@@ -1,6 +1,6 @@
-#!/bin/sh
+#!/bin/ksh
 
-# mb [-nq1] [folder [command...]] - thin REPL for mblaze(7)
+# mb [-nqv1] [folder [command...]] - thin REPL for mblaze(7)
 
 # If invoked with -n, we display only new mail in whatever folder
 # we're examining, which by default is your inbox as configured in
@@ -33,8 +33,8 @@ alias my=typeset
 # alias me=typeset
 
 SCRIPT=$0
-OUR_CMDS=$(grep '#\+' $SCRIPT | \
-		   sed -e 's/^.*#\+ //' | \
+OUR_CMDS=$(grep '#[+]' $SCRIPT | \
+		   sed -e 's/^.*#[+] //' | \
 		   awk '{ print $1 }' | sort -u)
 OUR_CMDLIST=$(echo ${OUR_CMDS} | sed -e 's/ /,/g')
 
@@ -81,7 +81,7 @@ quiet_start=$(mhdr -h MBStartQuiet $profile)
 VERBOSE=0
 f=
 only_one=0
-args=$(getopt nq1 $*)
+args=$(getopt vnq1 $*)
 if [ $? -ne 0 ]; then
 	echo usage: $(basename $SCRIPT) [-nqv1] [folder [cmd...]]
 	exit 1
@@ -226,15 +226,15 @@ give_help () {
 			# otherwise, dump all the help summaries (first lines)
 			if [ -z "$2" ]; then
 				for cmd in ${cmds}; do
-					grep "#\+ $cmd " $SCRIPT | head -1 | \
-						sed -e 's/^.*#\+ //'
+					grep "#[+] $cmd " $SCRIPT | head -1 | \
+						sed -e 's/^.*#[+] //'
 				done
 			else
 				# print all the help for a specific command
-				grep "#\+ $2 " $SCRIPT | \
-					sed -e 's/^.*#\+ //' | head -1
-				grep "#\+ $2 " $SCRIPT | \
-					sed -e 1d -e "s/^.*#\+ $2 /    /" | fmt
+				grep "#[+] $2 " $SCRIPT | \
+					sed -e 's/^.*#[+] //' | head -1
+				grep "#[+] $2 " $SCRIPT | \
+					sed -e 1d -e "s/^.*#[+] $2 /    /" | fmt
 			fi
 			;;
 		brief)
@@ -274,7 +274,7 @@ process_command () {
 			${nothing} ${afterargs}
 			return
 			;;
-		mime|extract|headers) #+ mime [msgno] - display mime structure of msg
+		mime|extract|headers) #+ mime [msgno] - display mime structure
 			#+ extract [msgno] part# - extract given part of msgno
 			#+ extract if no msgno is given and part# is a valid
 			#+ extract attachment# for the current message, a
@@ -608,10 +608,12 @@ fi
 trap 'spew_status; echo "("quit" or EOF to quit)"' QUIT INT
 trap 'spew_status; echo "[TERM]"; quitting=1' TERM
 
+verbose 'entering repl, rl_cmd=::'${rl_cmd}'::'
 quitting=0
 while [ $quitting -eq 0 ]; do
 	line=$(${rl_cmd} mb "${FOLDER}${new}$(slice)> ")
 	status=$?
+	verbose 'got a line: ::'${line}':: status=' $status
 	if [ $status -ne 0 ]; then
 		if [ $status -lt 100 ]; then
 			echo "  [QUIT]"
