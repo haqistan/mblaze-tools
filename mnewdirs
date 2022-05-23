@@ -2,11 +2,16 @@
 ##
 # find maildirs with new messages by default spit out lines like this:
 #     dir count
-# in this form dir will have /new at the end if the -n option is
-# specified, we instead spit out:
+# in this form dir will have /new at the end
+# if the -n option is specified, we instead spit out:
 #     maildir
 # which is just dirname $dir
-
+#
+# we normally ignore folders whose names end with -a-<yyyy>-<mm>-<dd>
+# (e.g. BankMail-a-2021-01-01) so that this convention can be used to
+# name archive folders that should not normally be displayed.  use the
+# -a option to disable this and display all folders with new mail
+##
 use strict;
 use warnings;
 use File::Basename;
@@ -30,14 +35,12 @@ our $maildir = mhdr("MaildirBase") || $ENV{'MAILDIR'} ||
 	join('/',$ENV{'HOME'},'mail');
 $maildir = $ENV{"HOME"}."/Maildir" unless -d $maildir;
 die "no maildir and no MAILDIR set!?\n" unless -d $maildir;
-# you can rename folders to <name>-a-<yyyy>-<mm>-<dd> and they are
-# filtered out by default, become visible with -a
 our $archive_re = mhdr("ArchiveRegexp",'-a-\d{4}-\d{2}-\d{2}');
 
 sub check {
 	return undef unless $opts{'a'} || $File::Find::dir !~ /$archive_re/;
 	$File::Find::name =~ /\/new\/\d+\.\d+_\d+.*$/ &&
-	    $newdirs{$File::Find::dir}++;
+		$newdirs{$File::Find::dir}++;
 }
 
 sub mungdir {
