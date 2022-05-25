@@ -16,7 +16,7 @@ our $COLORED = $ENV{'MSUMMARY_COLOR'} ? int($ENV{'MSUMMARY_COLOR'}) : 1;
 our $MAXSUBJ = 0;
 
 our $hdr = '';
-our $interesting = qr/^(from|to|cc|date|subject|x-spam-flag|list-id)$/i;
+our $interesting = qr/^(from|to|cc|date|subject|x-spam-flag|x-bogosity|list-id)$/i;
 our $something = 0;
 our %all;
 
@@ -54,7 +54,8 @@ sub docolor { $COLORED ? color(@_) : '' }
 
 sub printsumm {
 	my $spam = '';
-	if ($all{'x-spam-flag'} && ($all{'x-spam-flag'} eq 'YES')) {
+	if (($all{'x-spam-flag'} && ($all{'x-spam-flag'} eq 'YES')) ||
+	    ($all{'x-bogosity'} && ($all{'x-bogosity'} =~ /^Spam/))) {
 		$spam = docolor('red').'*'.docolor('reset').' ';
 	}
 	my $list = '';

@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/bin/ksh
 
 # simple mailcheck command to leave running in a tmux pane
 # configurable via ~/.mblaze/profile
@@ -22,6 +22,22 @@ date_fmt=$(mhdr -h MailCheckDateFmt $profile)
 [ -z "$date_fmt" ] && date_fmt="%Y-%m-%d %H:%M"
 
 sleeper_pid=0
+siginfo=""
+
+# bsd polyfill
+case $(uname) in
+	*BSD)	netstat="netstat -na -f inet"
+		[ -z "$siginfo" ] && siginfo="INFO"
+		stty_size_field () {
+			stty -a | perl -lne '/(\d+)\s+'$1'/ && print $1'
+		}
+		;;
+	*)	netstat="netstat -na4"
+		stty_size_field () {
+			stty -a | perl -lne '/'$1'\s+(\d+);/ && print $1'
+		}
+		;;
+esac
 
 ts () {
 	date +"$date_fmt"
@@ -60,8 +76,12 @@ interrupted () {
 	exit 1
 }
 
-trap 'interrupted' INT TERM QUIT
-trap 'wakeup' INFO
+trap 'interrupted' INT TERM
+if [ -n "$siginfo" ]; then
+	trap 'wakeup' QUIT
+else
+	trap 'wakeup' ${siginfo}
+fi
 
 clear_lockfile
 [ -z "${index_cmd}" ] && echo "[automatic indexing is OFF]"

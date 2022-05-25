@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/bin/ksh
 
 # munspam - unmark a message as spam and put it back in INBOX
 
@@ -9,14 +9,17 @@ inbox_name=$(mhdr -h InboxName "$MBLAZE/profile")
 [ -z "${inbox_name}" ] && inbox_name=INBOX
 inbox=$(mhdr -h Inbox "$MBLAZE/profile")
 [ -z "${inbox}" ] && inbox=${basedir}/${inbox_name}
-bmf_flags=-N
+bmf=$(mhdr -h BayesianCmd "$MBLAZE/profile")
+[ -z "$bmf" ] && bmf=bmf
+bmf_flags=$(mhdr -h BayesianUnspamFlags "$MBLAZE/profile")
+[ -z "$bmf_flags" ] && bmf_flags=-N
 
 unspamify () {
 	typeset filename name okf
 	while read filename; do
 		name=$(basename $filename)
 		okf=${inbox}/new/${name}
-		bmf ${bmf_flags} -p < ${filename} | tee ${okf} | msummary
+		${bmf} ${bmf_flags} -p < ${filename} | tee ${okf} | msummary
 		rm ${filename}
 	done
 }

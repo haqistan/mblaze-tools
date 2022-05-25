@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/bin/ksh
 
 # mpane [-nh] [-mloop_options] [cmd_args]
 

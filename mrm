@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/bin/ksh
 
 # mrm [-n] msgno [msgno...]
 

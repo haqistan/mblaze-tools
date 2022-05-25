@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/bin/ksh
 
 # mnewbox - list only new mail in maildir
 

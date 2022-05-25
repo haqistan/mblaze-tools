@@ -2,11 +2,16 @@
 ##
 # find maildirs with new messages by default spit out lines like this:
 #     dir count
-# in this form dir will have /new at the end if the -n option is
-# specified, we instead spit out:
+# in this form dir will have /new at the end
+# if the -n option is specified, we instead spit out:
 #     maildir
 # which is just dirname $dir
-
+#
+# we normally ignore folders whose names end with -a-<yyyy>-<mm>-<dd>
+# (e.g. BankMail-a-2021-01-01) so that this convention can be used to
+# name archive folders that should not normally be displayed.  use the
+# -a option to disable this and display all folders with new mail
+##
 use strict;
 use warnings;
 use File::Basename;
@@ -20,19 +25,22 @@ our $MBLAZE = $ENV{'MBLAZE'} || join('/',$ENV{'HOME'},'.mblaze');
 sub mhdr {
 	open(MHDR, "mhdr -h $_[0] $MBLAZE/profile |")
 		or die "mhdr: $!";
-	chomp(my $val = <MHDR>);
+	my $val = <MHDR>;
 	close(MHDR);
-	return $val;
+	chomp($val) if $val;
+	return $val // $_[1];
 }
 
 our $maildir = mhdr("MaildirBase") || $ENV{'MAILDIR'} ||
 	join('/',$ENV{'HOME'},'mail');
 $maildir = $ENV{"HOME"}."/Maildir" unless -d $maildir;
 die "no maildir and no MAILDIR set!?\n" unless -d $maildir;
+our $archive_re = mhdr("ArchiveRegexp",'-a-\d{4}-\d{2}-\d{2}');
 
 sub check {
+	return undef unless $opts{'a'} || $File::Find::dir !~ /$archive_re/;
 	$File::Find::name =~ /\/new\/\d+\.\d+_\d+.*$/ &&
-	    $newdirs{$File::Find::dir}++;
+		$newdirs{$File::Find::dir}++;
 }
 
 sub mungdir {
@@ -43,7 +51,7 @@ sub mungdir {
 	return dirname($dir);
 }
 
-getopts('n',\%opts);
+getopts('an',\%opts);
 our $fmt = $opts{'n'} ? "%s\n" : "%s %d\n";
 find(\&check, $maildir);
 foreach (sort keys %newdirs) {

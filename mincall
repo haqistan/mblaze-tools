@@ -1,3 +1,3 @@
-#!/bin/sh
+#!/bin/ksh
 # inc all new mail
 mnewdirs -n | mapply -a minc | mapply msummary

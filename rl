@@ -124,7 +124,13 @@ our %STYLES = (
 
 MAIN: {
 	my($help,$no_history,$history_file,$verbose,$style,
-	   $max_history,@completes,$chdir);
+	   $max_history,@completes,$chdir,$preput);
+	my $xit = undef;
+	my $input;
+	my $here = getcwd();
+	$SIG{ALRM} = sub { warn(" ALARM!\n"); $xit = 200; };
+	$SIG{QUIT} = sub { warn(" QUIT!\n"); $xit = 201; };
+	$SIG{INFO} = sub { exit(202); } if exists $SIG{INFO};
 	Getopt::Long::Configure("bundling");
 	GetOptions(
 		'help|?' => \$help,
@@ -135,6 +141,7 @@ MAIN: {
 		'complete|C=s' => \@completes,
 		'chdir|D=s' => \$chdir,
 		'verbose|v+' => \$verbose,
+		'preput|P=s' => \$preput,
 	) or pod2usage();
 	$verbose //= 0;
 	pod2usage(-verbose => 1+$verbose) if $help;
@@ -180,13 +187,11 @@ MAIN: {
 		@completes = map { split(/,/,$_) } @completes;
 		$attribs->{completion_word} = \@completes;
 	}
-	my $xit = undef;
-	my $input;
-	my $here = getcwd();
 	do {
 	      INPUT:
 		chdir($chdir) if $chdir;
-		$input = $rl->readline($prompt);
+		$input = $rl->readline($prompt,$preput);
+		$preput = '';
 		chdir($here) if $chdir;
 		if (!defined($input)) {
 			$xit = 1;

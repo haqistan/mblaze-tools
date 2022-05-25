@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/bin/ksh
 
 # minbox - list some inbox 
 
@@ -9,6 +9,12 @@ inbox_name=$(mhdr -h InboxName "$MBLAZE/profile")
 [ -z "${inbox_name}" ] && inbox_name=INBOX
 inbox=$(mhdr -h Inbox "$MBLAZE/profile")
 [ -z "${inbox}" ] && inbox=${basedir}/${inbox_name}
+scanner=mscan
+sequence="mseq -S"
+[ -n "$MB_PURTY" ] && {
+	sequence=mseq
+	scanner="mapply msummary"
+}
 
 [ -n "$1" ] && {
 	if [ -d "$1" ]; then
@@ -18,6 +24,7 @@ inbox=$(mhdr -h Inbox "$MBLAZE/profile")
 	fi
 	shift
 }
+
 mlist_args="$*"
 filter=cat
 if [ -n "$MB_HEAD" ]; then
@@ -28,4 +35,4 @@ elif [ -n "$MB_MID" ]; then
 	sedexp=$(echo $MB_MID | sed -e 's/-/,/')
 	filter="sed -n -e ${sedexp}p"
 fi
-mlist ${mlist_args} ${inbox} | ${filter} | mthread | mseq -S | mscan
+mlist ${mlist_args} ${inbox} | ${filter} | mthread | ${sequence} | ${scanner}

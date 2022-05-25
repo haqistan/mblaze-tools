@@ -157,14 +157,17 @@ rescan () {
 	shift
 	afterargs="$*"
 	[ -n "${CMD}" ] && {
+		typeset _cmd=${CMD}
 		if [ ${nothing} = inbox ]; then
 			FOLDER=${INBOX-$inbox_name}
 		elif [ ${nothing} = cd ]; then
 			[ -z "${afterargs}" ] && afterargs=${INBOX-$inbox_name}
 			FOLDER=${afterargs}
+		elif [ ${nothing} = dir ]; then
+			_cmd="env MB_PURTY=1 ${CMD}"
 		fi
-		echo ${CMD} ${FOLDER}
-		${CMD} ${FOLDER}
+		echo ${_cmd} ${FOLDER}
+		${_cmd} ${FOLDER}
 	}
 }
 
@@ -274,11 +277,12 @@ process_command () {
 			${nothing} ${afterargs}
 			return
 			;;
-		mime|extract|headers) #+ mime [msgno] - display mime structure
+		mime|extract|headers|xcat) #+ mime [msgno] - display mime structure of msg
 			#+ extract [msgno] part# - extract given part of msgno
 			#+ extract if no msgno is given and part# is a valid
 			#+ extract attachment# for the current message, a
 			#+ extract single numeric arg is taken to be att#
+			#+ xcat [msgno] part# - like extract but dump to stdout
 			#+ headers [opts] [msgno] - dump headers of msg to stdout
 			#+ headers other options to mshow(1) can precede the
 			#+ headers optional msgno, so >headers -H   will show
@@ -290,6 +294,10 @@ process_command () {
 					;;
 				extract)
 					cmd="mshow -x"
+					afterargs=$(special_args ${afterargs})
+					;;
+				xcat)
+					cmd="mshow -O"
 					afterargs=$(special_args ${afterargs})
 					;;
 				headers)
@@ -335,6 +343,9 @@ process_command () {
 			fi
 			return
 			;;
+		flag)	#+ flag [options] msgs - foo
+			return
+			;;
 		inc)	#+ inc [all|new] - incorporate new mail into cur (mark all read in folder)
 			#+ inc We use the minc(1) program from mblaze(7) to
 			#+ inc incorporate new mail in the current folder,
@@ -372,10 +383,28 @@ process_command () {
 			cmd=mshow
 			afterargs=$(set_args ${afterargs})
 			;;
+		save)	#+ save [msgno] [filename] - save raw message to file
+			afterargs=$(set_args ${afterargs})
+			if [ -z "${afterargs}" ]; then
+				usage "${nothing} [msgno] filename"
+				return
+			fi
+			msgno=$(tmux show-buffer)
+			[ -z "${msgno}" ] && msgno=.
+			echo "mshow -nrH ${msgno} >${afterargs}"
+			mshow -nrH ${msgno} >${afterargs}
+			if [ -s ${afterargs} ]; then
+				echo saved to ${afterargs}
+				ls -l ${afterargs}
+			else
+				echo "save: ${afterargs} is empty!?"
+			fi
+			return
+			;;
 		quit)	#+ quit - exit program
 			exit 0
 			;;
-		ls|cd|inbox)
+		ls|cd|inbox|dir)
 			#+ ls [slice] - (re)list current folder
 			#+ ls if the optional slice is specified, only that slice of the
 			#+ ls folder (new or cur) will be displayed. if it is a positive
@@ -387,6 +416,7 @@ process_command () {
 			#+ ls like new and all.
 			#+ cd folder - switch to different folder
 			#+ inbox - switch to in-box and list
+			#+ dir - like ls but use msummary instead
 			case "${afterargs}" in
 				[0-9]*)
 					MB_HEAD=${afterargs}
@@ -449,10 +479,16 @@ process_command () {
 			rescan ${nothing} ${afterargs}
 			return
 			;;
-		spam)	#+ spam [msgno] - run message through mrespam
+		spam|respam)	#+ spam [msgno] - mark a message as spam
+				#+ respam [msgno] - remark a misclassified msg as spam
 			if [ -n "${afterargs}" ]; then
-				echo mrespam ${afterargs}
-				mrespam ${afterargs}
+				typeset spamcmd=mrespam
+				if [ "${nothing}" = respam ]; then
+					spamcmd="mrespam -R"
+				fi
+				echo ${spamcmd} ${afterargs}
+				${spamcmd} ${afterargs}
+				spamcmd=""
 				return
 			fi
 			cmd=mrespam
@@ -567,7 +603,7 @@ process_command () {
 		f=$(mpick ${msgno} 2>/dev/null)
 		verbose "[msgno: ${msgno} .. $f]"
 		if [ -n "$f" ]; then
-			echo ${cmd} ${beforeargs} ${msgno} ${afterargs}
+			echo '>> '${cmd} ${beforeargs} ${msgno} ${afterargs}
 			if [ -n "${do_mscan}" ]; then
 				${cmd} ${beforeargs} ${msgno} ${afterargs} | \
 					${do_mscan}

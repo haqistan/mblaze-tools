@@ -5,7 +5,6 @@
 # respectable.
 
 ORIG_CMD="$0 $*"
-
 MBLAZE=${MBLAZE-$HOME/.mblaze}
 profile="$MBLAZE/profile"
 
@@ -14,6 +13,8 @@ date_fmt=$(mhdr -h FolderCheckDateFmt $profile)
 sleep=$(mhdr -h FolderCheckSleep $profile)
 [ -z "$sleep" ] && sleep=30
 default_sleep=$sleep
+SLOWLY=$(mhdr -h FolderCheckScrollSleep $profile)
+[ -z "$SLOWLY" ] && SLOWLY=2
 
 TEMPFILES=""
 CUR_MSG=""
@@ -23,6 +24,11 @@ siginfo=""
 if [ $# -gt 0 ]; then
 	sleep=$1
 	shift
+	if [ $# -gt 0 ]; then
+		SLOWLY=$1
+		shift
+	fi
+	echo "[sleep=$sleep SLOWLY=$SLOWLY]" 1>&2
 fi
 
 # bsd polyfill
@@ -150,6 +156,10 @@ remember_tempfile () {
 	esac
 }
 
+perlx () {
+	perl -Mv5.10 -e "say $*"
+}
+
 forget_tempfile () {
 	local fn=$1
 	TEMPFILES=$(echo $TEMPFILES | perl -lpe "s,${fn},,gs; s,^\s+,,; s,\s+\$,,;")
@@ -165,6 +175,10 @@ debug () {
 
 count_file_lines () {
 	wc -l $1 | awk '{print $1}'
+}
+
+squish_last_newline () {
+	perl -e 'undef($/);$x=<STDIN>;$x=~s/\n+$//;print $x'
 }
 
 # ticker-tape-style file display in a potentially small window
@@ -206,11 +220,13 @@ display_file () {
 	# sgr0=cancel effects(bold), sc=save position
 	tput sgr0 sc
 	if [ $n -lt $(expr $rows - 1) ]; then
+		# done!
 		cat $rs
 	else
-		local rm1=$(expr $rows - 2) r=0
+		# scrolly bits
+		local rm1=$(expr $rows - 1) r=0
 		local last=$(expr $n - $rm1)
-		# scroll the list forward slowly
+		# first scroll the list forward slowly
 		while [ $r -le $last ]; do
 			# rc=return to saved position
 			# ed=clear to end of screen
@@ -219,32 +235,32 @@ display_file () {
 				head -$rm1 $rs
 			else
 				sed -e "1,${r}d" <$rs | head -$rm1
-			fi
-			sleep 2
-			thee_sleep=$(expr $thee_sleep - 2)
+			fi | squish_last_newline
+			sleep $SLOWLY
+			thee_sleep=$(perlx "$thee_sleep - $SLOWLY")
 			r=$(expr $r + 1)
 		done
 		sleep 1 # pause between
-		thee_sleep=$(expr $thee_sleep - 1)
+		# now do it backwards
+		thee_sleep=$(perlx "$thee_sleep - 1")
 		r=$(expr $r - 1)
+		if [ $r -gt 0 ]; then
+			r=$(expr $r - 1)
+		fi
 		while [ $r -ge 0 ]; do
 			tput rc ed
 			if [ $r -eq 0 ]; then
 				head -$rm1 $rs
 			else
 				sed -e "1,${r}d" <$rs | head -$rm1
-			fi
-			sleep 2
-			thee_sleep=$(expr $thee_sleep - 2)
+			fi | squish_last_newline
+			sleep $SLOWLY
+			thee_sleep=$(perlx "$thee_sleep - $SLOWLY")
 			r=$(expr $r - 1)
 		done
 		case $thee_sleep in
-			-*) thee_sleep="" ;;
-			*)
-				if [ $thee_sleep -gt 5 ]; then
-					thee_sleep=2
-				fi
-				;;
+			-*) thee_sleep="" ;; # negative sleep is a thing
+			*)  ;;
 		esac
 	fi
 	forget_tempfile $rs
@@ -309,6 +325,7 @@ interrupted () {
 	exit 1
 }
 
+# ^C or SIGTERM kills us dead
 trap 'interrupted' INT TERM
 trap 'wakeup; restart' WINCH QUIT
 [ -n "$SIGINFO" ] && trap 'wakeup; restart' $SIGINFO

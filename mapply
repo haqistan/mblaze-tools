@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/bin/ksh
 
 # mpick msgs... | mapply cmd     # pipes each msg into cmd
 # mpick msgs... | mapply -a cmd  # runs cmd $filename on each msg
