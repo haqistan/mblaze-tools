@@ -383,7 +383,13 @@ process_command () {
 			cmd=mshow
 			afterargs=$(set_args ${afterargs})
 			;;
-		save)	#+ save [msgno] [filename] - save raw message to file
+		red)	#+ red [msgno] - re-deliver msgs by (re)filtering through fdm
+			#+ red pipes each message through: fdm -a stdin
+			cmd="mshow -nrH"
+			afterargs=$(set_args ${afterargs})
+			do_mscan="fdm -astdin fetch"
+			;;
+		save)	#+ save [msgno] filename - save raw message to file
 			afterargs=$(set_args ${afterargs})
 			if [ -z "${afterargs}" ]; then
 				usage "${nothing} [msgno] filename"

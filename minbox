@@ -15,16 +15,20 @@ sequence="mseq -S"
 	sequence=mseq
 	scanner="mapply msummary"
 }
+threader=mthread
+verbose=0
 
-[ -n "$1" ] && {
-	if [ -d "$1" ]; then
-		inbox="$1"
-	else
-		inbox="${basedir}/$1"
-	fi
+while [ $# -ne 0 ]; do
+	case "$1" in
+		-v) verbose=$(expr 1 + $verbose); shift ;;
+		-t) threader=cat; shift ;;
+		*) break ;;
+	esac
+done
+if [ $# -gt 0 ]; then
+	inbox="${basedir}/$1"
 	shift
-}
-
+fi
 mlist_args="$*"
 filter=cat
 if [ -n "$MB_HEAD" ]; then
@@ -35,4 +39,6 @@ elif [ -n "$MB_MID" ]; then
 	sedexp=$(echo $MB_MID | sed -e 's/-/,/')
 	filter="sed -n -e ${sedexp}p"
 fi
-mlist ${mlist_args} ${inbox} | ${filter} | mthread | ${sequence} | ${scanner}
+[ $verbose -ne 0 ] &&
+	echo ">> mlist ${mlist_args} ${inbox} | ${filter} | ${threader} | ${sequence} | ${scanner}" 1>&2
+mlist ${mlist_args} ${inbox} | ${filter} | ${threader} | ${sequence} | ${scanner}
