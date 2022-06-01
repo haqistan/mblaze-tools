@@ -57,7 +57,7 @@ title="[$fold #$*]"
 if [ $use_xterm -ne 0 ]; then
 	xterm -geom 80x32 -title "$title" -e "mless $*"
 elif [ $use_tmux -ne 0 ]; then
-	tmux new-window -n "$title" "mless $*"
+	tmux select-pane -T "$fold#$*" -t $(tmux new-window -P -n "$title" "mless $*")
 else
 	mshow $*
 fi
