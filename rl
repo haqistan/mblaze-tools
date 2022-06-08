@@ -222,6 +222,7 @@ MAIN: {
 		}
 	} while (!defined($xit));
 	if (defined($input)) {
+		$input =~ s/^\s+//;
 		$input =~ s/\/+$//;
 		say $input;
 	}
