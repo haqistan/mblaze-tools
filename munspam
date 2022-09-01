@@ -14,11 +14,18 @@ bmf=$(mhdr -h BayesianCmd "$MBLAZE/profile")
 bmf_flags=$(mhdr -h BayesianUnspamFlags "$MBLAZE/profile")
 [ -z "$bmf_flags" ] && bmf_flags=-N
 
+target=${inbox}
+if [ $# -gt 0 -a -d ${basedir}/$1/tmp ]; then
+	target=${basedir}/$1
+	echo '# sending reclassified mail -> '${target}/new 1>&2
+	shift
+fi
+
 unspamify () {
 	typeset filename name okf
 	while read filename; do
 		name=$(basename $filename)
-		okf=${inbox}/new/${name}
+		okf=${target}/new/${name}
 		${bmf} ${bmf_flags} -p < ${filename} | tee ${okf} | msummary
 		rm ${filename}
 	done

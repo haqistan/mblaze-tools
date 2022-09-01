@@ -16,22 +16,23 @@ package HistoryFile;
 
 use List::Util qw(max min);
 
-sub new { bless({file=>$_[1],@_},$_[0]) }
+sub new { bless({file=>$_[1],lines => [],@_},$_[0]) }
 sub trim {
 	my($self,@hist) = @_;
-	@hist = $self->{rl}->GetHistory() unless @hist;
-	my $maxh = $self->{max_history};
-	return @hist unless $maxh && scalar(@hist) > $maxh;
-	my $off = scalar(@hist) - $maxh;
-	return @hist[$off..$#hist];
+	@hist = @{$self->{lines}} unless @hist;
+	my $maxh = $self->{max_history} // 0;
+	shift(@hist) while ($maxh && 0+@hist >= $maxh);
+	return @hist;
 }
 sub append {
 	my($self,$input) = @_;
 	my $fn = $self->{file};
-	warn("# saving history => $fn\n") if $self->{verbose};
 	my @hist = $self->trim();
-	pop(@hist) if ($self->{max_history} &&
-		       scalar(@hist) == $self->{max_history});
+	my $max = $self->{max_history} // 0;
+	warn("# saving history => $fn\n") if $self->{verbose};
+	warn("# new input: |$input|, previous history ".
+	     scalar(@hist).": ".join(", ",@hist)."\n")
+		if $self->{verbose} > 1;
 	push(@hist,$input);
 	my $f = IO::File->new("${fn}.tmp", ">:utf8")
 		or die "rl canot save ${fn}.tmp: $!";
@@ -75,13 +76,15 @@ sub load {
 	}
 	$f->close();
 	@lines = $self->trim(@lines);
+	$self->{lines} = [@lines];
+	$rl->clear_history();
 	$rl->add_history($_) foreach @lines;
 	return $self;
 }
 sub list {
 	my($self,$n,$rl) = @_;
 	$rl //= $self->{rl};
-	my @hist = $rl->GetHistory();
+	my @hist = @{$self->{lines}};
 	my $k = $#hist;
 	my @seq = ($n > 0)? (max(($k-$n)+1,0) .. $k):
 		(($n < 0)? (0 .. min(abs($n)-1,$k)): (0 .. $k));
@@ -92,12 +95,13 @@ sub list {
 sub clear {
 	my($self,$n,$rl) = @_;
 	$rl //= $self->{rl};
-	my @hist = $rl->GetHistory();
+	my @hist = @{$self->{lines}};
 	my $k = $#hist;
 	$n //= 0;
 	my @seq = ($n > 0)? (max(($k-$n)+1,0) .. $k):
 		(($n < 0)? (0 .. min(abs($n)-1,$k)): (0 .. $k));
 	@hist = splice(@hist,@seq);
+	$self->{lines} = [@hist];
 	warn("# clear n=$n k=$k seq=@seq new=".scalar(@hist)."\n")
 		if $self->{verbose};
 	$rl->clear_history();
@@ -107,7 +111,7 @@ sub clear {
 sub grep {
 	my($self,$pat,$rl) = @_;
 	$rl //= $self->{rl};
-	my @hist = $rl->GetHistory();
+	my @hist = @{$self->{lines}};
 	warn("# grep /$pat/\n") if $self->{verbose};
 	warn("$_: ".$hist[$_]."\n")
 		foreach (grep { $hist[$_] =~ /$pat/ } (0 .. $#hist));
@@ -190,11 +194,12 @@ MAIN: {
 	do {
 	      INPUT:
 		chdir($chdir) if $chdir;
+		$xit = undef;
 		$input = $rl->readline($prompt,$preput);
 		$preput = '';
 		chdir($here) if $chdir;
 		if (!defined($input)) {
-			$xit = 1;
+			$xit //= 1;
 		} else {
 			chomp($input);
 			goto INPUT unless $input;

@@ -76,6 +76,8 @@ fi
 rl_cmd="${rl_cmd} -C ${OUR_CMDLIST} -D ${basedir}"
 quiet_start=$(mhdr -h MBStartQuiet $profile)
 [ -z "${quiet_start}" ] && quiet_start=0
+expert=$(mhdr -h MBExpert $profile)
+[ -z "${expert}" ] && expert=0
 
 # parse command-line args
 VERBOSE=0
@@ -640,6 +642,8 @@ msgno=
 if [ $quiet_start -eq 0 ]; then
 	${CMD} ${FOLDER}
 	echo "folder: ${FOLDER}, cmd: ${CMD}, editor: ${EDITOR}"
+fi
+if [ $expert -eq 0 ]; then
 	give_help brief
 fi
 if [ $# -gt 0 ]; then
