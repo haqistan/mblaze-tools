@@ -132,7 +132,7 @@ tmux_send () {
 			args=$(set_args $*)
 			msgno=$(tmux show-buffer)
 			title="reply"
-			[ ${cmd} = mfwd ] && titla="fwd"
+			[ ${cmd} = mfwd ] && title="fwd"
 			title="${title} ${msgno}"
 			fullcmd="${cmd} ${args} -- ${msgno}"
 			;;

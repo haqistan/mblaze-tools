@@ -35,12 +35,22 @@ our $maildir = mhdr("MaildirBase") || $ENV{'MAILDIR'} ||
 	join('/',$ENV{'HOME'},'mail');
 $maildir = $ENV{"HOME"}."/Maildir" unless -d $maildir;
 die "no maildir and no MAILDIR set!?\n" unless -d $maildir;
-our $archive_re = mhdr("ArchiveRegexp",'-a-\d{4}-\d{2}-\d{2}');
+our $archive_regexp = mhdr("ArchiveRegexp",'-a-\d{4}-\d{2}-\d{2}');
+our $archive_re = qr/$archive_regexp/;
+our $spam_regexp = mhdr("SpamFolderRegexp",'^Spam.*');
+our $spam_re = qr/$spam_regexp/;
+our @newdirs_list = map { ($_ !~ m,^/,)?"${maildir}/$_":"$_" } split(/\s*,\s*/,mhdr("NewMailFolderList","$maildir"));
+#warn("# newdirs_list: @newdirs_list\n");
+our $total_msgs = 0;
 
 sub check {
-	return undef unless $opts{'a'} || $File::Find::dir !~ /$archive_re/;
-	$File::Find::name =~ /\/new\/\d+\.\d+_\d+.*$/ &&
+	return undef unless $opts{'a'} ||
+		$File::Find::dir =~ $spam_re ||
+		$File::Find::dir !~ $archive_re;
+	if ($File::Find::name =~ /\/new\/\d+\.\d+_\d+.*$/) {
+		++$total_msgs;
 		$newdirs{$File::Find::dir}++;
+	}
 }
 
 sub mungdir {
@@ -51,9 +61,17 @@ sub mungdir {
 	return dirname($dir);
 }
 
-getopts('an',\%opts);
+# main program
+
+getopts('anto',\%opts);
 our $fmt = $opts{'n'} ? "%s\n" : "%s %d\n";
-find(\&check, $maildir);
+@newdirs_list = () if $opts{'o'};
+unshift(@newdirs_list,@ARGV);
+find(\&check,@newdirs_list);
+if ($opts{t}) {
+	print "$total_msgs\n";
+	exit(0);
+}
 foreach (sort keys %newdirs) {
 	my @out = (mungdir($_));
 	push(@out, $newdirs{$_}) unless $opts{'n'};
