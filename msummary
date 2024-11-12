@@ -8,12 +8,14 @@
 
 use strict;
 use warnings;
+use Getopt::Std;
 use POSIX qw(strftime);
 use Time::ParseDate;
 use Term::ANSIColor;
 
 our $COLORED = $ENV{'MSUMMARY_COLOR'} ? int($ENV{'MSUMMARY_COLOR'}) : 1;
 our $MAXSUBJ = 0;
+our %OPTS;
 
 our $hdr = '';
 our $interesting = qr/^(from|to|cc|date|subject|x-spam-flag|x-bogosity|list-id)$/i;
@@ -95,7 +97,12 @@ sub printsumm {
 	my $cont = '';
 	$cont = docolor('magenta').' ... '.$all{'_content'}.docolor('reset')
 	    if exists $all{'_content'};
-	print STDERR "${date}${spam}${list}${from} -> ${to}: ${subj}${cont}\n";
+	my $final="${date}${spam}${list}${from} -> ${to}: ${subj}${cont}";
+	if ($OPTS{'o'}) {
+		print "$final\n";
+	} else {
+		print STDERR "$final\n";
+	}
 }
 
 sub summ {
@@ -150,5 +157,10 @@ sub summ {
 	}
 	printsumm() if $something;
 }
+
+getopts('hoc',\%OPTS);
+die "usage: cat email-message.eml | msummary [-oc]\n"
+	if $OPTS{'h'};
+$COLORED = 0 if $OPTS{'c'};
 
 summ(\*STDIN);

@@ -4,25 +4,30 @@
 
 # If invoked with -n, we display only new mail in whatever folder
 # we're examining, which by default is your inbox as configured in
-# ~/.mblaze/profile or in the envar INBOX.  See the README.md file for
-# more on configuration.  If invoked with -q, we skip listing the
-# folder and printing a usage summary at start (quiet start).  Any
-# additional arguments beyond the folder are interpreted as a command
-# and executed immediately upon startup.  If the -1 option is given,
-# then we do not drop into the main loop and instead only execute
-# whatever command was given as arguments and exit.
-
+# ~/.mblaze/profile or in the envar INBOX. See the README.md file for
+# more on configuration.
+#
+# If invoked with -q, we skip listing the folder and printing a usage
+# summary at start (quiet start).
+#
+# Any additional arguments beyond the folder are interpreted as a command
+# and executed immediately upon startup.
+#
+# If the -1 option is given, then we do not drop into the main loop
+# and instead only execute whatever command was given as arguments and exit.
+#
 # Switch between new/cur sides of a Maildir w/the new/cur commands.
-
+#
 # The help system is based on hash-plus comments in this script, c.f
-# the give_help function, below.
-
+# the give_help function, below. References in the code/docs to
+# mblaze commands look like mhdr(1).
+#
 # type "brief" at the prompt for a brief usage summary
 # type "help" for one-line summaries on each command
 # type "help <cmd>" for more detailed help on <cmd>
 # hit ^\ for a brief status report on the current folder
 # use ^C to interrupt something, you land back in the loop
-
+#
 # This script comes with a small Perl program, rl, which uses GNU
 # ReadLine and handles history.  For it to work you have to have the
 # Term::ReadLine::Gnu Perl module installed on your system (pkg_add
@@ -38,7 +43,7 @@ OUR_CMDS=$(grep '#[+]' $SCRIPT | \
 		   awk '{ print $1 }' | sort -u)
 OUR_CMDLIST=$(echo ${OUR_CMDS} | sed -e 's/ /,/g')
 
-# query config in ~/.mblaze/profile
+# query config in ~/.mblaze/profile with mhdr(1)
 MBLAZE=${MBLAZE-$HOME/.mblaze}
 profile="$MBLAZE/profile"
 basedir=$(mhdr -h MaildirBase $profile)
@@ -137,8 +142,12 @@ tmux_send () {
 			fullcmd="${cmd} ${args} -- ${msgno}"
 			;;
 	esac
-	tmux new-window -n "[$title]" "echo ${fullcmd}; env EDITOR=$EDITOR ${fullcmd}; echo '[PRESS RETURN TO CLOSE]'; read"
+	tmux new-window -n "[$title]" \
+		"echo ${fullcmd}; env EDITOR=$EDITOR ${fullcmd}; \
+		 echo '[PRESS RETURN TO CLOSE]'; read"
 }
+
+# invoke the various names of mcom(1) in a new tmux window
 
 reply () {
 	tmux_send mrep $*
@@ -196,28 +205,49 @@ set_args () {
 # 1..$number_attachments of cur message, don't treat it as a msg#,
 # treat it as attachment#
 special_args () {
-	my the_args cur natt
-	cur=$(tmux show-buffer)
+	my the_args cur natt done=0
 	the_args="$*"
-	case $1 in
-		[0-9]*)
-			if [ -n "${cur}" ]; then
-				natt=$(mshow -t ${cur} |tail -1 | \
-					       awk -F: '{print $1}')
-				if [ $1 -gt $natt ]; then
+	cur=$(tmux show-buffer)
+	while [ $# -gt 0 -a $done -eq 0 ]; do
+		case $1 in
+			[0-9]*)
+				if [ -n "${cur}" ]; then
+					natt=$(mshow -t ${cur} |tail -1 | \
+						       awk -F: '{print $1}')
+					if [ $1 -gt $natt ]; then
+						tmux set-buffer $1
+						cur="$1"
+					fi
+					shift
+					# else it is an attachment#, leave args alone
+				else
 					tmux set-buffer $1
 					shift
 					the_args="$*"
+					cur="$1"
 				fi
-				# else it is an attachment#, leave args alone
-			else
-				tmux set-buffer $1
+				;;
+			*)
+				done=1
+				;;
+		esac
+	done
+	echo "$the_args"
+}
+
+filter_args () {
+	my done=0
+	while [ $# -gt 0 -a $done -eq 0 ]; do
+		case $1 in
+			[0-9]*)
 				shift
-				the_args="$*"
-			fi
-			;;
-	esac
-	echo ${the_args}
+				;;
+			*)
+				done=1
+				;;
+		esac
+	done
+	echo "$*"
 }
 
 # search this script for hash-plus comments and display them in various ways
@@ -279,7 +309,7 @@ process_command () {
 			${nothing} ${afterargs}
 			return
 			;;
-		mime|extract|headers|xcat) #+ mime [msgno] - display mime structure of msg
+		mime|extract|headers|xcat|filter) #+ mime [msgno] - display mime structure
 			#+ extract [msgno] part# - extract given part of msgno
 			#+ extract if no msgno is given and part# is a valid
 			#+ extract attachment# for the current message, a
@@ -289,6 +319,9 @@ process_command () {
 			#+ headers other options to mshow(1) can precede the
 			#+ headers optional msgno, so >headers -H   will show
 			#+ headers all raw headers of the current message
+			#+ filter [opts] [msgno] cmd [...args] - filter part through cmd
+			#+ filter run a message part through a Unix filter and display
+			#+ filter the results on stdout (unless you redir in the cmd)
 			case ${nothing} in
 				mime)
 					cmd="mshow -t"
@@ -306,6 +339,12 @@ process_command () {
 					cmd="mshow -q"
 					beforeargs=$(special_args ${afterargs})
 					afterargs=""
+					;;
+				filter)
+					cmd="mshow -O"
+					beforeargs=$(special_args ${afterargs})
+					afterargs=""
+					do_mscan=$(filter_args ${beforeargs})
 					;;
 			esac
 			;;
@@ -611,11 +650,12 @@ process_command () {
 		f=$(mpick ${msgno} 2>/dev/null)
 		verbose "[msgno: ${msgno} .. $f]"
 		if [ -n "$f" ]; then
-			echo '>> '${cmd} ${beforeargs} ${msgno} ${afterargs}
 			if [ -n "${do_mscan}" ]; then
+				echo '>> '${cmd} ${beforeargs} ${msgno} ${afterargs}' | '${do_mscan}
 				${cmd} ${beforeargs} ${msgno} ${afterargs} | \
 					${do_mscan}
 			else
+				#echo '>> '${cmd} ${beforeargs} ${msgno} ${afterargs}
 				${cmd} ${beforeargs} ${msgno} ${afterargs}
 			fi
 		fi

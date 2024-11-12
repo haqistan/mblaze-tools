@@ -1,0 +1,35 @@
+#!/bin/ksh
+
+# file incoming messages destined for me+something@somewhere type addresses
+# usage: plusfiler plus base [default]
+# plus is the suffix extracted from the address (e.g. in .fdm.conf)
+# base is the base Maildir under which we should find a dir named $plus
+# optional default is where we file the message if $base/$plus does not exist
+
+die () {
+	echo "error: $*"
+	exit 1
+}
+
+plus=$1
+[ -z "$plus" ] && die 'plus what now?'
+shift
+
+base=$1
+[ -z "$base" ] && die 'not based'
+shift
+
+default=$1
+[ -z "$default" ] && die 'no default'
+shift
+
+target="${default}"
+if [ -d "${base}/${plus}" ]; then
+	target="${base}/${plus}"
+fi
+
+[ ! -d "${target}" ] && die "bad target ${target}"
+
+echo "# mdeliver $* ${target}" 1>&2
+mdeliver $* ${target}
+

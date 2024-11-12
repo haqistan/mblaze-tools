@@ -18,6 +18,7 @@ use File::Basename;
 use File::Find;
 use Getopt::Std;
 
+our $VERBOSE = $ENV{VERBOSE} || 0;
 our %newdirs = (); # dir => #files
 our %opts;
 our $MBLAZE = $ENV{'MBLAZE'} || join('/',$ENV{'HOME'},'.mblaze');
@@ -39,17 +40,24 @@ our $archive_regexp = mhdr("ArchiveRegexp",'-a-\d{4}-\d{2}-\d{2}');
 our $archive_re = qr/$archive_regexp/;
 our $spam_regexp = mhdr("SpamFolderRegexp",'^Spam.*');
 our $spam_re = qr/$spam_regexp/;
-our @newdirs_list = map { ($_ !~ m,^/,)?"${maildir}/$_":"$_" } split(/\s*,\s*/,mhdr("NewMailFolderList","$maildir"));
-#warn("# newdirs_list: @newdirs_list\n");
+our @newdirs_list = (map { ($_ !~ m,^/,)?"${maildir}/$_":"$_" }
+		     split(/\s*,\s*/,mhdr("NewMailFolderList","$maildir")));
 our $total_msgs = 0;
 
 sub check {
-	return undef unless $opts{'a'} ||
-		$File::Find::dir =~ $spam_re ||
-		$File::Find::dir !~ $archive_re;
-	if ($File::Find::name =~ /\/new\/\d+\.\d+_\d+.*$/) {
+	warn("### check: $File::Find::name\n")
+		if $VERBOSE && $VERBOSE > 2;
+	return undef unless $opts{'a'} || $File::Find::dir !~ $archive_re;
+	return undef unless $opts{'a'} || $File::Find::dir !~ $spam_re;
+	warn("### !spam: $File::Find::name\n")
+		if $VERBOSE && $VERBOSE > 3;
+	if ($File::Find::name =~ /\/new\/\d+\..*$/) {
 		++$total_msgs;
-		$newdirs{$File::Find::dir}++;
+		my $already = $newdirs{$File::Find::dir}++;
+		warn("### -- $File::Find::dir: matched\n")
+			unless !$VERBOSE || $already;
+		warn("### ++ $File::Find::dir => $total_msgs\n")
+			if $VERBOSE && $VERBOSE > 3;
 	}
 }
 
@@ -61,16 +69,31 @@ sub mungdir {
 	return dirname($dir);
 }
 
+sub maildirz {
+	map { $_ .= '/new' unless $_ =~ /\/new$/; $_ }
+	grep { $_ !~ /.*\/(cur|tmp|\.|\..)$/ }
+	map { glob($_) } @_
+}
+
 # main program
 
-getopts('anto',\%opts);
+getopts('antTov',\%opts);
 our $fmt = $opts{'n'} ? "%s\n" : "%s %d\n";
 @newdirs_list = () if $opts{'o'};
 unshift(@newdirs_list,@ARGV);
+@newdirs_list = maildirz(@newdirs_list);
+$VERBOSE ||= $opts{'v'};
+warn("## $0 opts: ".join(', ',map{"$_=$opts{$_}"} keys(%opts))."\n")
+	if $VERBOSE;
+warn("## ".scalar(@newdirs_list)." newdirs_list: ".join(', ',@newdirs_list)."\n")
+	if $VERBOSE;
+warn("## spam_re=/$spam_re/ archive_re=/$archive_re/\n")
+	if $VERBOSE;
 find(\&check,@newdirs_list);
-if ($opts{t}) {
-	print "$total_msgs\n";
-	exit(0);
+if ($opts{t} || $opts{T}) {
+	my $total_folders = scalar(keys(%newdirs));
+	print "$total_msgs in $total_folders\n";
+	exit(0) if $opts{t};
 }
 foreach (sort keys %newdirs) {
 	my @out = (mungdir($_));

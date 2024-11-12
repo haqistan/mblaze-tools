@@ -157,7 +157,13 @@ remember_tempfile () {
 }
 
 perlx () {
-	perl -Mv5.10 -e "say $*"
+	perl -Mv5.10 -MTime::HiRes=time -e "say $*"
+}
+
+microtime () {
+	local t=$(perlx time)
+#	debug "microtime $t"
+	echo $t
 }
 
 forget_tempfile () {
@@ -189,6 +195,7 @@ squish_last_newline () {
 
 had=0
 display_file () {
+#	debug "display_file $*"
 	local fn=$1 cols=$(tty_cols) rows=$(tty_rows) n=0 rs nlines thee_sleep=$sleep
 	[ -z "$cols" ] && cols=$COLUMNS
 	[ -z "$rows" ] && rows=$ROWS
@@ -218,7 +225,8 @@ display_file () {
 	tput bold
 	echo "$title"
 	# sgr0=cancel effects(bold), sc=save position
-	tput sgr0 sc
+	tput sgr0
+	tput sc
 	if [ $n -lt $(expr $rows - 1) ]; then
 		# done!
 		cat $rs
@@ -230,7 +238,8 @@ display_file () {
 		while [ $r -le $last ]; do
 			# rc=return to saved position
 			# ed=clear to end of screen
-			tput rc ed
+			tput rc
+			tput ed
 			if [ $r -eq 0 ]; then
 				head -$rm1 $rs
 			else
@@ -240,7 +249,7 @@ display_file () {
 			thee_sleep=$(perlx "$thee_sleep - $SLOWLY")
 			r=$(expr $r + 1)
 		done
-		sleep 1 # pause between
+		sleep 2.5
 		# now do it backwards
 		thee_sleep=$(perlx "$thee_sleep - 1")
 		r=$(expr $r - 1)
@@ -248,8 +257,9 @@ display_file () {
 			r=$(expr $r - 1)
 		fi
 		while [ $r -ge 0 ]; do
-			tput rc ed
-			if [ $r -eq 0 ]; then
+			tput rc
+			tput ed
+			if [ $r -gt 0 ]; then
 				head -$rm1 $rs
 			else
 				sed -e "1,${r}d" <$rs | head -$rm1
@@ -271,6 +281,7 @@ display_file () {
 first_time=1
 check () {
 	local cols tmpf=$1
+#	debug "in check $tmpf"
 	cols=$(tty_cols)
 	[ -z "$cols" ] && cols=$COLUMNS
 	if [ $had -eq 0 ]; then
@@ -312,6 +323,11 @@ restart () {
 	exec $ORIG_CMD
 }
 
+refresh () {
+	tput clear sgr0 cvvis
+	[ -n "${tmpf}" -a -f "${tmpf}" ] && display_file ${tmpf}
+}
+
 interrupted () {
 	wakeup
 	if [ -n "$TEMPFILES" ]; then
@@ -328,12 +344,19 @@ interrupted () {
 # ^C or SIGTERM kills us dead
 trap 'interrupted' INT TERM
 trap 'wakeup; restart' WINCH QUIT
-[ -n "$SIGINFO" ] && trap 'wakeup; restart' $SIGINFO
+[ -n "$siginfo" ] && trap 'wakeup; refresh' $siginfo
 
-tmpf=${TMPDIR-/tmp}/foldercheck.$$
+tmpf=${TMPDIR-/tmp}/folder###check.$$
 
 while true; do
+	ttime=0
+	t0=$(microtime)
 	check $tmpf
-	[[ -n "$sleep" ]] && shleep $sleep
 	sleep=$default_sleep
+	while [[ $(perlx "($ttime < $sleep)? 1: 0") -eq 1 ]]; do
+		display_file $tmpf
+		ttime=$(perlx "time - $t0")
+		sleep 2.5
+	done
+	sleep 0.1
 done
