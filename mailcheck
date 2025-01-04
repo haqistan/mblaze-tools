@@ -9,23 +9,37 @@ MBLAZE=${MBLAZE-$HOME/.mblaze}
 profile="$MBLAZE/profile"
 
 sleep=$1
-[ -z "$sleep" ] && sleep=$(mhdr -h MailCheckSleep $profile)
-[ -z "$sleep" ] && sleep=30
-check_cmd=$(mhdr -h MailCheckCommand $profile)
-[ -z "$check_cmd" ] && check_cmd="fdm -q fetch"
-check_lockf=$(mhdr -h MailCheckLockFile $profile)
-[ -z "$check_lockf" ] && check_lockf=$HOME/.fdm.lock
-index_cmd=$(mhdr -h MailCheckIndexCommand $profile)
-[ -z "$index_cmd" ] && index_cmd="mairix -p"
-[ "$index_cmd" = "-" ] && index_cmd=""
-date_fmt=$(mhdr -h MailCheckDateFmt $profile)
-[ -z "$date_fmt" ] && date_fmt="%Y-%m-%d %H:%M"
 
 sleeper_pid=0
 
 ts () {
 	date +"$date_fmt"
 }
+
+getmblazeopt () {
+    [[ -n $1 ]] && mhdr -h $1 $profile | envsubst && return 0
+    return 1
+}
+
+check_cmd=$(getmblazeopt MailCheckCommand)
+check_cmd=${check_cmd:-"fdm -q fetch"}
+
+sleep=${1:-$(getmblazeopt MailCheckSleep)}
+sleep=${sleep:-30}
+
+check_lockf=$(getmblazeopt MailCheckLockFile)
+check_lockf=${check_lockf:-"$HOME/.fdm.lock"}
+
+index_cmd=$(getmblazeopt MailCheckIndexCommand)
+index_cmd=${index_cmd:--}
+if [[ $index_cmd == "-" ]]; then
+    index_cmd=""
+else
+    index_cmd=${index_cmd:-"mairix -p"}
+fi
+
+date_fmt=$(getmblazeopt MailCheckDateFmt)
+date_fmt=${date_fmt:-"%Y-%m-%d %H:%M"}
 
 shleep () {
 	sleep $1 >/dev/null 2>&1 & sleeper_pid=$!

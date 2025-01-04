@@ -9,11 +9,20 @@ ORIG_CMD="$0 $*"
 MBLAZE=${MBLAZE-$HOME/.mblaze}
 profile="$MBLAZE/profile"
 
-date_fmt=$(mhdr -h FolderCheckDateFmt $profile)
-[ -z "$date_fmt" ] && date_fmt="%Y-%m-%d %H:%M"
-sleep=$(mhdr -h FolderCheckSleep $profile)
-[ -z "$sleep" ] && sleep=30
+getmblazeopt () {
+    [[ -n $1 ]] && mhdr -h $1 $profile | envsubst && return 0
+    return 1
+}
+
+check_cmd=$(getmblazeopt MailCheckCommand)
+check_cmd=${check_cmd:-"fdm -q fetch"}
+
+sleep=$(getmblazeopt FolderCheckSleep)
+sleep=${sleep:-30}
 default_sleep=$sleep
+
+date_fmt=$(getmblazeopt FolderCheckDateFmt)
+date_fmt=${date_fmt:-"%Y-%m-%d %H:%M"}
 
 TEMPFILES=""
 

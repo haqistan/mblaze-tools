@@ -27,8 +27,11 @@ args=
 use_xterm=0
 use_tmux=0
 
-[ -n $TMUX ] && use_tmux=1
-[ $use_tmux -eq 0 -a -n $DISPLAY ] && use_xterm=1
+if [ -n $TMUX ]; then
+ 	use_tmux=1
+elif [ ${use_tmux} -eq 0 -a -n $DISPLAY ]; then
+	use_xterm=1
+fi
 
 for arg in $*; do
 	case $arg in
