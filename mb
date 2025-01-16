@@ -46,42 +46,47 @@ OUR_CMDLIST=$(echo ${OUR_CMDS} | sed -e 's/ /,/g')
 # query config in ~/.mblaze/profile with mhdr(1)
 MBLAZE=${MBLAZE-$HOME/.mblaze}
 profile="$MBLAZE/profile"
-basedir=$(mhdr -h MaildirBase $profile)
+
+cfglook () {
+	mhdr -h $* | envsubst
+}
+
+basedir=$(cfglook MaildirBase $profile)
 basedir=${basedir-$HOME/mail}
-inbox_name=$(mhdr -h InboxName $profile)
+inbox_name=$(cfglook InboxName $profile)
 [ -z "${inbox_name}" ] && inbox_name=INBOX
-inbox=$(mhdr -h Inbox $profile)
+inbox=$(cfglook Inbox $profile)
 [ -z "${inbox}" ] && inbox=${basedir}/${inbox_name}
-editor_cmd=$(mhdr -h Editor $profile)
+editor_cmd=$(cfglook Editor $profile)
 [ -z "${editor_cmd}" ] && editor_cmd=${EDITOR-${VISUAL-vi}}
 EDITOR=${EDITOR-$editor_cmd}
-mdopts=$(mhdr -h MdisplayOpts $profile)
-synchost=$(mhdr -h SyncHost $profile)
-synccmd=$(mhdr -h SyncCmd $profile)
+mdopts=$(cfglook MdisplayOpts $profile)
+synchost=$(cfglook SyncHost $profile)
+synccmd=$(cfglook SyncCmd $profile)
 [ -z "${synccmd}" ] && synccmd="rsync -azv"
-syncrmt=$(mhdr -h SyncRemoteDir $profile)
+syncrmt=$(cfglook SyncRemoteDir $profile)
 [ -z "${syncrmt}" ] && syncrmt=$HOME
-mairix=$(mhdr -h MairixCmd $profile)
+mairix=$(cfglook MairixCmd $profile)
 [ -z "${mairix}" ] && mairix=mairix
-index_opts=$(mhdr -h MairixIndexOpts $profile)
-CMD=$(mhdr -h MBDefaultCmd $profile)
+index_opts=$(cfglook MairixIndexOpts $profile)
+CMD=$(cfglook MBDefaultCmd $profile)
 [ -z "$CMD" ] && CMD=minbox
-shell_cmd=$(mhdr -h ShellEscapeCmd $profile)
+shell_cmd=$(cfglook ShellEscapeCmd $profile)
 [ -z "${shell_cmd}" ] && shell_cmd=${SHELL-/bin/sh}
-rl_cmd=$(mhdr -h MBReadLineCmd $profile)
+rl_cmd=$(cfglook MBReadLineCmd $profile)
 rl_from_profile=0
 [ -n "${rl_cmd}" ] && rl_from_profile=1
 [ -z "${rl_cmd}" ] && rl_cmd=rl
 if [ $rl_from_profile -eq 0 ]; then
-	rl_hist=$(mhdr -h MBHistoryFile $profile)
+	rl_hist=$(cfglook MBHistoryFile $profile)
 	[ -n "${rl_hist}" ] && rl_cmd="${rl_cmd} -F ${rl_hist}"
-	rl_maxhist=$(mhdr -h MBHistoryMax $profile)
+	rl_maxhist=$(cfglook MBHistoryMax $profile)
 	[ -n "${rl_maxhist}" ] && rl_cmd="${rl_cmd} -X ${rl_maxhist}"
 fi
 rl_cmd="${rl_cmd} -C ${OUR_CMDLIST} -D ${basedir}"
-quiet_start=$(mhdr -h MBStartQuiet $profile)
+quiet_start=$(cfglook MBStartQuiet $profile)
 [ -z "${quiet_start}" ] && quiet_start=0
-expert=$(mhdr -h MBExpert $profile)
+expert=$(cfglook MBExpert $profile)
 [ -z "${expert}" ] && expert=0
 
 # parse command-line args

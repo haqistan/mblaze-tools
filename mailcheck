@@ -8,17 +8,21 @@
 MBLAZE=${MBLAZE-$HOME/.mblaze}
 profile="$MBLAZE/profile"
 
+cfglook () {
+	mhdr -h $* | envsubst
+}
+
 sleep=$1
-[ -z "$sleep" ] && sleep=$(mhdr -h MailCheckSleep $profile)
+[ -z "$sleep" ] && sleep=$(cfglook MailCheckSleep $profile)
 [ -z "$sleep" ] && sleep=30
-check_cmd=$(mhdr -h MailCheckCommand $profile)
+check_cmd=$(cfglook MailCheckCommand $profile)
 [ -z "$check_cmd" ] && check_cmd="fdm -q fetch"
-check_lockf=$(mhdr -h MailCheckLockFile $profile)
+check_lockf=$(cfglook MailCheckLockFile $profile)
 [ -z "$check_lockf" ] && check_lockf=$HOME/.fdm.lock
-index_cmd=$(mhdr -h MailCheckIndexCommand $profile)
+index_cmd=$(cfglook MailCheckIndexCommand $profile)
 [ -z "$index_cmd" ] && index_cmd="mairix -p"
 [ "$index_cmd" = "-" ] && index_cmd=""
-date_fmt=$(mhdr -h MailCheckDateFmt $profile)
+date_fmt=$(cfglook MailCheckDateFmt $profile)
 [ -z "$date_fmt" ] && date_fmt="%Y-%m-%d %H:%M"
 
 sleeper_pid=0

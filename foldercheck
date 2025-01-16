@@ -8,12 +8,16 @@ ORIG_CMD="$0 $*"
 MBLAZE=${MBLAZE-$HOME/.mblaze}
 profile="$MBLAZE/profile"
 
-date_fmt=$(mhdr -h FolderCheckDateFmt $profile)
+cfglook () {
+	mhdr -h $* | envsubst
+}
+
+date_fmt=$(cfglook FolderCheckDateFmt $profile)
 [ -z "$date_fmt" ] && date_fmt="%Y-%m-%d %H:%M"
-sleep=$(mhdr -h FolderCheckSleep $profile)
+sleep=$(cfglook FolderCheckSleep $profile)
 [ -z "$sleep" ] && sleep=30
 default_sleep=$sleep
-SLOWLY=$(mhdr -h FolderCheckScrollSleep $profile)
+SLOWLY=$(cfglook FolderCheckScrollSleep $profile)
 [ -z "$SLOWLY" ] && SLOWLY=2
 
 TEMPFILES=""

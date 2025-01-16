@@ -14,7 +14,12 @@ case $(uname) in
 esac
 
 MBLAZE=${MBLAZE-$HOME/.mblaze}
-rmcmd=$(mhdr -h RemoveCmd "$MBLAZE/profile")
+
+cfglook () {
+	mhdr -h $* | envsubst
+}
+
+rmcmd=$(cfglook RemoveCmd "$MBLAZE/profile")
 [ -z "${rmcmd}" ] && rmcmd="${def_rmcmd}"
 
 while [ $# -ne 0 ]; do

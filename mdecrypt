@@ -7,9 +7,14 @@
 # use file descriptors instead.
 
 MBLAZE=${MBLAZE-$HOME/.mblaze}
-crypt_tmp=$(mhdr -h CryptTmp "$MBLAZE/profile")
+
+cfglook () {
+	mhdr -h $* | envsubst
+}
+
+crypt_tmp=$(cfglook CryptTmp "$MBLAZE/profile")
 [ -z "${crypt_tmp}" ] && crypt_tmp=$HOME/mine/tmp
-crypt_file_cmd=$(mhdr -h CryptFileCmd "$MBLAZE/profile")
+crypt_file_cmd=$(cfglook CryptFileCmd "$MBLAZE/profile")
 [ -z "${crypt_file_cmd}" ] && crypt_file_cmd="fdm -acrypto fetch"
 
 read_password () {

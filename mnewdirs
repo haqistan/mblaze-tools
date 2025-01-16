@@ -29,7 +29,12 @@ sub mhdr {
 	my $val = <MHDR>;
 	close(MHDR);
 	chomp($val) if $val;
-	return $val // $_[1];
+	$val //= $_[1];
+	foreach my $envar (sort keys %ENV) {
+		my $enval = $ENV{$envar};
+		$val =~ s/\b\$$envar\b/$enval/g;
+	}
+	return $val;
 }
 
 our $maildir = mhdr("MaildirBase") || $ENV{'MAILDIR'} ||

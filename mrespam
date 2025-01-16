@@ -3,14 +3,19 @@
 # mrespam - mark a message as spam and move it to Spam
 
 MBLAZE=${MBLAZE-$HOME/.mblaze}
-basedir=$(mhdr -h MaildirBase "$MBLAZE/profile")
+
+cfglook () {
+	mhdr -h $* | envsubst
+}
+
+basedir=$(cfglook MaildirBase "$MBLAZE/profile")
 basedir=${basedir-$HOME/Maildir}
 spamdir=${SPAMDIR-${basedir}/Spam}
-bmf=$(mhdr -h BayesianCmd "$MBLAZE/profile")
+bmf=$(cfglook BayesianCmd "$MBLAZE/profile")
 [ -z "$bmf" ] && bmf=bmf
-re_flags=$(mhdr -h BayesianRespamFlags "$MBLAZE/profile")
+re_flags=$(cfglook BayesianRespamFlags "$MBLAZE/profile")
 [ -z "$re_flags" ] && re_flags=-N
-sp_flags=$(mhdr -h BayesianSpamFlags "$MBLAZE/profile")
+sp_flags=$(cfglook BayesianSpamFlags "$MBLAZE/profile")
 [ -z "$sp_flags" ] && sp_flags=-s
 bmf_flags=${sp_flags}
 

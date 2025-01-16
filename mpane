@@ -6,7 +6,12 @@
 # the default size of the pane we create in tmux
 
 MBLAZE=${MBLAZE-${HOME}/.mblaze}
-editor_cmd=$(mhdr -h Editor "$MBLAZE/profile")
+
+cfglook () {
+	mhdr -h $* | envsubst
+}
+
+editor_cmd=$(cfglook Editor "$MBLAZE/profile")
 [ -z "${editor_cmd}" ] && editor_cmd=${EDITOR-${VISUAL-vi}}
 EDITOR=${EDITOR-$editor_cmd}
 
@@ -38,6 +43,6 @@ for arg in $*; do
 	esac
 done
 
-lines=$(mhdr -h MpaneLines "$MBLAZE/profile")
+lines=$(cfglook MpaneLines "$MBLAZE/profile")
 [ -z "$lines" ] && lines=20
 tmux split-window ${horiz} -l ${lines} "env EDITOR=$EDITOR mloop ${opts} ${args}"

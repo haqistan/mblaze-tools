@@ -3,15 +3,20 @@
 # munspam - unmark a message as spam and put it back in INBOX
 
 MBLAZE=${MBLAZE-$HOME/.mblaze}
-basedir=$(mhdr -h MaildirBase "$MBLAZE/profile")
+
+cfglook () {
+	mhdr -h $* | envsubst
+}
+
+basedir=$(cfglook MaildirBase "$MBLAZE/profile")
 basedir=${basedir-$HOME/Maildir}
-inbox_name=$(mhdr -h InboxName "$MBLAZE/profile")
+inbox_name=$(cfglook InboxName "$MBLAZE/profile")
 [ -z "${inbox_name}" ] && inbox_name=INBOX
-inbox=$(mhdr -h Inbox "$MBLAZE/profile")
+inbox=$(cfglook Inbox "$MBLAZE/profile")
 [ -z "${inbox}" ] && inbox=${basedir}/${inbox_name}
-bmf=$(mhdr -h BayesianCmd "$MBLAZE/profile")
+bmf=$(cfglook BayesianCmd "$MBLAZE/profile")
 [ -z "$bmf" ] && bmf=bmf
-bmf_flags=$(mhdr -h BayesianUnspamFlags "$MBLAZE/profile")
+bmf_flags=$(cfglook BayesianUnspamFlags "$MBLAZE/profile")
 [ -z "$bmf_flags" ] && bmf_flags=-N
 
 target=${inbox}
