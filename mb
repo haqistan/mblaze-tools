@@ -48,7 +48,14 @@ MBLAZE=${MBLAZE-$HOME/.mblaze}
 profile="$MBLAZE/profile"
 
 cfglook () {
-	mhdr -h $* | envsubst
+	my name=$1
+	shift
+	my loc=$1
+	shift
+	my default="$*"
+	my val=$(mhdr -h ${name} ${loc} | envsubst)
+	[ -z "${val}" ] && val="${default}"
+	echo ${val}
 }
 
 basedir=$(cfglook MaildirBase $profile)
@@ -88,6 +95,8 @@ quiet_start=$(cfglook MBStartQuiet $profile)
 [ -z "${quiet_start}" ] && quiet_start=0
 expert=$(cfglook MBExpert $profile)
 [ -z "${expert}" ] && expert=0
+ALIAS_FILE=$(cfglook AliasFile $profile ${MBLAZE}/aliases)
+OUR_ALIASES="" 
 
 # parse command-line args
 VERBOSE=0
@@ -122,7 +131,7 @@ new=
 
 verbose () {
 	if [ $VERBOSE -ne 0 ]; then
-		echo $@
+		echo $@ 1>&2
 	fi
 }
 
@@ -261,6 +270,9 @@ give_help () {
 	# get the list of commands for starters, alpha-sorted
 	cmds=$OUR_CMDS
 	case $1 in
+		alias)
+			list_aliases $2
+			;;
 		help)
 			# if they give us a specific command find help for it
 			# otherwise, dump all the help summaries (first lines)
@@ -298,14 +310,99 @@ usage () {
 	echo "usage: $*"
 }
 
+warn () {
+	echo "WARNING: $*" 1>&2
+}
+
+## aliases
+
+get_alias () {
+	my name=$1
+	my _nm=ALIAS_${name}
+	export ${_nm}
+	eval "echo \$${_nm}"
+}
+
+set_alias () {
+	my name=$1
+	shift
+	my body="$*"
+	my _nm=ALIAS_${name}
+	my _cmd="${_nm}='${body}'; export ${_nm}"
+	eval "$_cmd"
+	verbose "SET_ALIAS ${name} ${_cmd}"
+	save_aliases
+	echo ${name}
+}
+
+load_aliases () {
+	OUR_ALIASES=""
+	if [ ! -f ${ALIAS_FILE} ]; then
+		return 0
+	fi
+	verbose "LOADING aliases: ${ALIAS_FILE}"
+	while read name body; do
+		set_alias ${name} ${body}
+		if [ -z "${OUR_ALIASES}" ]; then
+			OUR_ALIASES="${name}"
+		else
+			OUR_ALIASES="${OUR_ALIASES} ${name}"
+		fi
+	done < ${ALIAS_FILE}
+}
+
+save_aliases () {
+	my list="${OUR_ALIASES}"
+	for aname in ${list}; do
+		my val=$(get_alias ${aname})
+		echo "${aname}\t${val}"
+	done >${ALIAS_FILE}.new
+	if [ -s ${ALIAS_FILE}.new ]; then
+		rm -p ${ALIAS_FILE}.bak
+		mv ${ALIAS_FILE} ${ALIAS_FILE}.bak || \
+			die "could not back up alias file ${ALIAS_FILE}"
+		mv ${ALIAS_FILE}.new ${ALIAS_FILE} || \
+			die "could not install new alias_file ${ALIAS_FILE}"
+	fi
+}
+
+list_aliases () {
+	my aname ask=$1
+	for aname in ${OUR_ALIASES}; do
+		if [ -z "${ask}" ]; then
+			echo "${aname}"
+		elif [ "$aname" == "$ask" ]; then
+			echo "${aname}\t$(get_alias ${aname})"
+		fi
+	done
+}
+
+# handle an alias command
+handle_alias () {
+	my name=$1
+	my val=""
+	if [ -z "${name}" ]; then
+		list_aliases
+	elif [ -z "$2" ]; then
+		list_aliases $name
+	else
+		shift
+		set_alias $name "$*"
+	fi
+	echo ${name}
+}
+
+## end aliases
+
 # handle one command and optional args
 process_command () {
-	my nothing afterargs beforeargs cmd do_mscan tohost
+	my nothing afterargs beforeargs cmd do_mscan tohost new_command
 	nothing=$1
 	shift
 	afterargs="$*"
 	beforeargs=
 	cmd="mdisplay ${mdopts}"
+	new_command=""
 	do_mscan=
 	case ${nothing} in
 		reply|fwd|send) #+ reply [msgno] [mcom-opts] - reply to cur/given msg in new (tmux) window
@@ -630,16 +727,39 @@ process_command () {
 			give_help help prompt
 			return
 			;;
+		alias)	#+ alias [name [body...]] - list, show or define aliases
+			#+ alias if no args are given, lists all aliases. if only
+			#+ alias a name is given, that alias will be displayed if
+			#+ alias it exists. if more than a name is given, the named
+			#+ alias alias is (re)defined and saved across sessions. sh
+			#+ alias substitutions can be used to good effect in body
+			my _aname=$(handle_alias ${afterargs})
+			if [ -z "${_aname}" ]; then
+				give_help help alias
+			else
+				give_help alias ${_aname}
+			fi
+			return
+			;;
 		[0-9]*) tmux set-buffer ${nothing}
 			;;
 		[a-zA-Z]*)
+			my alias=$(get_alias ${nothing})
 			if [ -d ${basedir}/${nothing} ]; then
+				if [ -n "${alias}" ]; then
+					warn "alias ${nothing} shadows folder"
+				fi
 				rescan cd ${nothing}
 				return
 			fi
-			usage "not recognized: ${nothing}"
-			give_help brief
-			return
+			if [ -n "${alias}" ]; then
+				new_command="${alias}"
+				verbose "ALIAS ${nothing}: ${alias}"
+			else
+				usage "not recognized: ${nothing}"
+				give_help brief
+				return
+			fi
 			;;
 		.) ;;	#+ . - a single dot displays the current message
 		!*)	#+ ! cmd ... - run a shell command
@@ -650,18 +770,22 @@ process_command () {
 			return
 			;;
 	esac
-	msgno=$(tmux show-buffer)
-	if [ -n "${msgno}" ]; then
-		f=$(mpick ${msgno} 2>/dev/null)
-		verbose "[msgno: ${msgno} .. $f]"
-		if [ -n "$f" ]; then
-			if [ -n "${do_mscan}" ]; then
-				echo '>> '${cmd} ${beforeargs} ${msgno} ${afterargs}' | '${do_mscan}
-				${cmd} ${beforeargs} ${msgno} ${afterargs} | \
-					${do_mscan}
-			else
-				#echo '>> '${cmd} ${beforeargs} ${msgno} ${afterargs}
-				${cmd} ${beforeargs} ${msgno} ${afterargs}
+	if [ -n "${new_command}" ]; then
+		process_command ${new_command}
+	else
+		msgno=$(tmux show-buffer)
+		if [ -n "${msgno}" ]; then
+			f=$(mpick ${msgno} 2>/dev/null)
+			verbose "[msgno: ${msgno} .. $f]"
+			if [ -n "$f" ]; then
+				if [ -n "${do_mscan}" ]; then
+					echo '>> '${cmd} ${beforeargs} ${msgno} ${afterargs}' | '${do_mscan}
+					${cmd} ${beforeargs} ${msgno} ${afterargs} | \
+						${do_mscan}
+				else
+					#echo '>> '${cmd} ${beforeargs} ${msgno} ${afterargs}
+					${cmd} ${beforeargs} ${msgno} ${afterargs}
+				fi
 			fi
 		fi
 	fi
@@ -683,10 +807,13 @@ slice () {
 	fi
 }
 
+load_aliases
 msgno=
 if [ $quiet_start -eq 0 ]; then
 	${CMD} ${FOLDER}
 	echo "folder: ${FOLDER}, cmd: ${CMD}, editor: ${EDITOR}"
+	[ -n "${OUR_ALIASES}" ] &&
+		echo "aliases: $(echo ${OUR_ALIASES} | sed -e 's/ /,/g')"
 fi
 if [ $expert -eq 0 ]; then
 	give_help brief
