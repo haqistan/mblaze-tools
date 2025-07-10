@@ -1,0 +1,26 @@
+#!/bin/sh
+
+verbose=${VERBOSE-}
+
+die () {
+	echo "error: $*" 1>&2
+	exit 1
+}
+
+warn () {
+	echo "warn: $*" 1>&2
+}
+
+debug () {
+	[ -n "$verbose" ] && warn "$*"
+}
+
+look=$1
+[ -n "$look" ] || die "nothing to look up"
+[ ! -f "$HOME/.mailrc" ] && exit 0
+grep "^alias ${look} " $HOME/.mailrc | \
+	while read match; do
+		debug "MATCH /$look/ |$match|"
+		echo $match | sed -E -e "s/^alias $look //" -e 's/(^"|"$)//g'	
+	done
+exit 0

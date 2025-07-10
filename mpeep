@@ -1,0 +1,16 @@
+##!/usr/bin/env ksh
+
+list=$1
+if [ -z "$list" ]; then
+	list=$(mktemp)	
+	cat > $list
+	CLEANUP="$CLEANUP $list"
+fi
+
+trap '[ -n "$CLEANUP" ] && rm -f $CLEANUP' EXIT
+
+for f in $list; do
+	for a in $(mshow -t $f | grep text/html | awk -F: '{print $1}'); do
+		mshow -O $f $a | html2text
+	done
+done
